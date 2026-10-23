@@ -244,7 +244,6 @@ onBeforeUnmount(() => { generation++; previewGeneration++; });
 .finder-event-icon img { width: 28px; height: 28px; object-fit: contain; }
 .finder-row.selected .finder-event-icon { background-color: currentColor; -webkit-mask: var(--finder-event-mask) center / contain no-repeat; mask: var(--finder-event-mask) center / contain no-repeat; }
 .finder-row.selected .finder-event-icon img { visibility: hidden; }
-.finder-row .finder-folder-icon { color: hsl(var(--primary) / .75); }
 .finder-row.selected > svg { color: hsl(var(--primary)); }
 .finder-row-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .finder-row > small { font-size: 10px; opacity: .5; }
