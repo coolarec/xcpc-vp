@@ -1039,3 +1039,38 @@
 #nprogress .spinner {
   display: none;
 }
+
+/* Apply the active document theme to every SRK modal, including new dialogs
+   without a rootClassName and dialogs rendered outside the page container. */
+html .srk-modal-root {
+  --mask-bg: rgb(0 0 0 / 45%);
+  color: hsl(var(--popover-foreground));
+}
+
+html.dark .srk-modal-root {
+  --mask-bg: rgb(0 0 0 / 65%);
+}
+
+html .srk-modal-root .srk-modal-mask {
+  background-color: var(--mask-bg);
+}
+
+html .srk-modal-root .srk-modal-content {
+  background-color: hsl(var(--popover));
+  color: hsl(var(--popover-foreground));
+}
+
+html .srk-modal-root .srk-modal-content .srk-modal-header {
+  background-color: hsl(var(--popover));
+  color: hsl(var(--popover-foreground));
+  border-bottom-color: hsl(var(--border));
+}
+
+html .srk-modal-root .srk-modal-content .srk-modal-close {
+  color: hsl(var(--muted-foreground));
+}
+
+html .srk-modal-root .srk-modal-content .srk-modal-close:hover,
+html .srk-modal-root .srk-modal-content .srk-modal-close:focus-visible {
+  color: hsl(var(--popover-foreground));
+}

@@ -530,6 +530,98 @@
   max-width: 100%;
 }
 
+// VP keeps every problem column on screen instead of scrolling the table.
+.srk-ranklist-table-scroll.srk-fit-problems {
+  width: 100%;
+  min-width: 0;
+  overflow: visible;
+  container: vp-rank-table / inline-size;
+  --vp-number-width: clamp(14px, 3cqw, 40px);
+  --vp-metric-width: clamp(20px, 4.5cqw, 56px);
+  --vp-name-width: clamp(50px, 18cqw, 240px);
+  --vp-table-font-size: clamp(8px, 1.3cqw, 14px);
+
+  .srk-main {
+    width: 100%;
+    min-width: 0;
+    --srk-series-segment-border-width: 3px;
+    --srk-series-segment-content-gap: 2px;
+
+    table {
+      width: 100%;
+      min-width: 0;
+      max-width: 100%;
+      table-layout: fixed;
+      font-size: var(--vp-table-font-size);
+
+      *, :before, :after {
+        box-sizing: border-box;
+      }
+
+      thead > tr > th,
+      tbody > tr > td,
+      tfoot > tr > td {
+        min-width: 0;
+        padding: 7px 2px;
+        white-space: normal;
+        overflow-wrap: anywhere;
+      }
+
+      thead > tr > th:not(.srk-problem-header) {
+        width: var(--vp-number-width);
+      }
+
+      thead > tr > th.srk--text-left {
+        width: var(--vp-name-width);
+      }
+
+      thead > tr > th.srk--text-right:not(.srk-series-header):not(.srk-dirt-header):not(.srk-se-header) {
+        width: var(--vp-metric-width);
+      }
+
+      thead > tr > th.srk-problem-header {
+        width: auto;
+        text-align: center;
+        vertical-align: top;
+      }
+
+      thead > tr > th.srk-series-segmented-column,
+      tbody > tr > td.srk-series-segmented-column {
+        padding-right: 5px;
+      }
+
+      tbody > tr > td.srk-user-cell {
+        max-width: none;
+      }
+    }
+
+    .srk-user-cell-content,
+    .srk-user-name-row,
+    .srk-organization-cell-content {
+      min-width: 0;
+    }
+
+    .srk-user-avatar img {
+      max-width: 18px;
+      max-height: 22px;
+      margin-right: 3px;
+    }
+
+    table tbody > tr > td .srk-user-secondary-text {
+      font-size: min(12px, var(--vp-table-font-size));
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .srk-problem-stats,
+    .srk-prest-status-block-secondary,
+    .srk-prest-status-block-score-details {
+      font-size: min(11px, var(--vp-table-font-size));
+    }
+  }
+}
+
 .srk-common-table {
   *, :before, :after {
     box-sizing: content-box;

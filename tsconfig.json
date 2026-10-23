@@ -1,25 +1,24 @@
 {
   "compilerOptions": {
-    "target": "ES2017",
-    "lib": ["es6"],
-    "module": "commonjs",
+    "target": "ESNext",
+    "useDefineForClassFields": true,
+    "module": "ESNext",
     "moduleResolution": "node",
-    "experimentalDecorators": true,
-    "emitDecoratorMetadata": true,
-    "allowSyntheticDefaultImports": true,
-    "esModuleInterop": true,
-    "noImplicitThis": true,
-    "resolveJsonModule": true,
+    "strict": false,
+    "jsx": "preserve",
     "sourceMap": true,
-    "outDir": "app",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "esModuleInterop": true,
+    "lib": ["ESNext", "DOM", "DOM.Iterable"],
+    "skipLibCheck": true,
     "baseUrl": ".",
     "paths": {
-      "@server/*": ["./src/server/*"],
       "@common/*": ["./src/common/*"],
       "@client/*": ["./src/client/*"],
       "@/*": ["./src/client/*"]
     }
   },
   "include": ["./src/**/*"],
-  "exclude": ["node_modules", "dist", "app"]
+  "exclude": ["node_modules", "dist", "dist-vp"]
 }

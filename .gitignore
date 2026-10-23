@@ -5,6 +5,7 @@ node_modules/
 .planning/
 skills-lock.json
 dist/
+dist-vp/
 /app/
 coverage/
 test-results/

@@ -13,6 +13,11 @@ export interface StyledRanklistRendererProps {
   showFilter?: boolean;
   showProgress?: boolean;
   isLive?: boolean;
+  progressTimeDelta?: number;
+  enableTimeTravel?: boolean;
+  replayElapsedMs?: number;
+  ccpc26Mode?: boolean;
+  fitProblemColumns?: boolean;
   languages?: readonly string[];
   tableClass?: string;
   tableStyle?: CSSProperties;

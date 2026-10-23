@@ -117,6 +117,10 @@ const props = withDefaults(defineProps<StyledRanklistRendererProps>(), {
   showFilter: false,
   showProgress: true,
   isLive: false,
+  progressTimeDelta: 0,
+  enableTimeTravel: true,
+  ccpc26Mode: undefined,
+  fitProblemColumns: false,
 });
 
 const saveAs = FileSaver.saveAs || FileSaver;
@@ -181,7 +185,7 @@ const storedRanklistSettings = ref<unknown>(readLocalStorageJson(LocalStorageKey
 const settingsIntroRead = ref<string | undefined>(readLocalStorageString(LocalStorageKey.StyledRanklistSettingsIntroRead));
 const memorizedData = shallowRef<srk.Ranklist>(toRanklistPayloadWithoutVolatileFields(toRaw(props.data)));
 const rankTimeDataVersion = ref(0);
-const ccpc26TimeEligible = useCCPC26Mode(() => memorizedData.value, () => props.isLive, () => timeTravelTime.value);
+const ccpc26TimeEligible = useCCPC26Mode(() => memorizedData.value, () => props.isLive, () => props.replayElapsedMs ?? timeTravelTime.value);
 const hasCCPC26 = computed(() => isCCPC26Ranklist(memorizedData.value));
 const requiresClientClockForRanklist = computed(() => props.isLive && isCCPC26Ranklist(memorizedData.value));
 
@@ -198,7 +202,7 @@ const renderedRanklistSettings = computed<StyledRanklistSettings>(() => {
   };
 });
 // The saved preference stays enabled across the freeze boundary; only the effective mode changes.
-const enableCCPC26 = computed(() => renderedRanklistSettings.value.preferCCPC26 && ccpc26TimeEligible.value);
+const enableCCPC26 = computed(() => (props.ccpc26Mode ?? renderedRanklistSettings.value.preferCCPC26) && ccpc26TimeEligible.value);
 const emptyStatusPlaceholder = computed(() =>
   getEmptyStatusPlaceholder(renderedRanklistSettings.value.emptyStatusPlaceholder),
 );
@@ -1270,7 +1274,8 @@ function resolveDisplayText(text: Parameters<typeof resolveText>[0]) {
         v-if="!isLive || clientClockReady"
         :key="progressBarRenderKey"
         :data="memorizedData"
-        enable-time-travel
+        :enable-time-travel="enableTimeTravel"
+        :td="progressTimeDelta"
         :live="isLive"
         @time-travel="handleTimeTravel"
       >
@@ -1527,7 +1532,7 @@ function resolveDisplayText(text: Parameters<typeof resolveText>[0]) {
       <div v-if="staticData.remarks" class="mb-4 text-center">
         <span class="srk-remarks">备注：{{ resolveDisplayText(staticData.remarks) }}</span>
       </div>
-      <div class="srk-ranklist-table-scroll">
+      <div class="srk-ranklist-table-scroll" :class="{ 'srk-fit-problems': fitProblemColumns }" role="region" aria-label="比赛榜单">
         <Ranklist
           v-if="!requiresClientClockForRanklist || clientClockReady"
           :data="usingData"
