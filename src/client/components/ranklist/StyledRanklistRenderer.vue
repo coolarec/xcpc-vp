@@ -1265,6 +1265,7 @@ function resolveDisplayText(text: Parameters<typeof resolveText>[0]) {
           </span>
         </DropdownMenu>
       </p>
+      <slot name="after-ref-links" />
     </div>
     <p class="srk-ranklist-time">
       {{ contestTimeRange.startText }} ~ {{ contestTimeRange.endText }}

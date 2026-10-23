@@ -29,6 +29,9 @@ const srkCheckError = computed(() => {
     <pre>{{ srkCheckError }}</pre>
   </div>
   <StyledRanklistRenderer v-else v-bind="props">
+    <template #after-ref-links>
+      <slot name="after-ref-links" />
+    </template>
     <template #extra-action="{ ranklist }">
       <slot name="extra-action" :ranklist="ranklist" />
     </template>

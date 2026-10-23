@@ -16,6 +16,7 @@ import { formatTitle } from '@/app/title-format';
 import { prepareReplay, type ManualSubmission } from './replay';
 import { applyVPOptions, DEFAULT_VP_OPTIONS, readVPOptions, type VPOptions } from './options';
 import { shouldEnableCCPC26 } from '@/utils/ccpc26.util';
+import { parseSubmissionTime } from './submission-time';
 
 const route = useRoute();
 const router = useRouter();
@@ -35,6 +36,9 @@ const ownNameInput = ref('');
 const manual = ref<ManualSubmission[]>([]);
 const problem = ref(0);
 const result = ref<'AC' | 'WA'>('AC');
+const submissionHour = ref('0');
+const submissionMinute = ref('0');
+const customSubmissionTime = ref(false);
 const joinOpen = ref(false);
 const resetOpen = ref(false);
 const scrollSolution = ref<InstanceType<typeof ScrollSolution>>();
@@ -46,11 +50,19 @@ const run = computed(() => typeof route.query.run === 'string' ? route.query.run
 const enabledScrollSolution = computed(() => route.query.feed !== '0' && clientWidth.value >= 768);
 const duration = computed(() => replay.value?.durationMs || 0);
 const ended = computed(() => !!duration.value && elapsed.value >= duration.value);
+const displayedSubmissionHour = computed(() => customSubmissionTime.value ? submissionHour.value : String(Math.floor(elapsed.value / 3_600_000)));
+const displayedSubmissionMinute = computed(() => customSubmissionTime.value ? submissionMinute.value : String(Math.floor(elapsed.value / 60_000) % 60));
+const submissionTimeError = computed(() => {
+  if (!customSubmissionTime.value) return '';
+  try { parseSubmissionTime(submissionHour.value, submissionMinute.value, elapsed.value, duration.value); return ''; }
+  catch (e) { return e instanceof Error ? e.message : '提交时间无效。'; }
+});
 const progressTimeDelta = computed(() => now.value - (Date.parse(ranklist.value?.contest.startAt || '') + elapsed.value));
 const viewportStyle = computed(() => ({ marginLeft: enabledScrollSolution.value ? '250px' : undefined, width: enabledScrollSolution.value ? 'calc(100% - 250px)' : '100%', minWidth: '0' }));
 const ccpc26Active = computed(() => !!ranklist.value && shouldEnableCCPC26(ranklist.value, { isLive: true, timeTravelTime: elapsed.value, now: now.value }));
 const revealedProblems = computed(() => ccpc26Active.value && ranklist.value ? new Set(getCCPC26ProblemLayout(ranklist.value)?.revealedProblemIndexes || []) : null);
-const storageKey = computed(() => `RanklandVP2:${key.value}:${run.value}:${options.value.rule}:${options.value.revealCount}:${options.value.revealRatio}:${options.value.penaltyMinutes}:${options.value.startMinutes}`);
+// Preserve the legacy default-penalty key so existing default sessions still restore.
+const storageKey = computed(() => `RanklandVP2:${key.value}:${run.value}:${options.value.rule}:${options.value.revealCount}:${options.value.revealRatio}:null:${options.value.startMinutes}`);
 let anchorTime = Date.now();
 let anchorElapsed = 0;
 let cursor = 0;
@@ -134,6 +146,7 @@ function setSpeed(event: Event) {
 }
 function reset() {
   running.value = false; elapsed.value = 0; manual.value = []; ownName.value = ''; ownNameInput.value = ''; cursor = 0;
+  customSubmissionTime.value = false;
   resetOpen.value = false; feedKey.value++; reanchor(); redraw(false); save();
 }
 function join() {
@@ -144,9 +157,13 @@ function join() {
 function record() {
   tick();
   if (!running.value || !ownName.value || ended.value) return;
+  if (submissionTimeError.value) return;
+  const timeMs = customSubmissionTime.value
+    ? parseSubmissionTime(submissionHour.value, submissionMinute.value, elapsed.value, duration.value)
+    : elapsed.value;
   const own = ranklist.value?.rows.find(row => row.user.id === '__vp_self__');
   if (['AC', 'FB'].includes(own?.statuses[problem.value]?.result || '')) return;
-  manual.value = [...manual.value, { id: crypto.randomUUID(), problemIndex: problem.value, timeMs: elapsed.value, result: result.value }];
+  manual.value = [...manual.value, { id: crypto.randomUUID(), problemIndex: problem.value, timeMs, result: result.value }];
   redraw(false); save();
   const updatedOwn = ranklist.value.rows.find(row => row.user.id === '__vp_self__');
   scrollSolution.value?.pushSolutions([{
@@ -154,6 +171,16 @@ function record() {
     score: { value: updatedOwn?.score.value || 0 }, result: result.value,
     user: { name: ownName.value, organization: 'Virtual Participant' },
   }]);
+}
+function editSubmissionTime(field: 'hour' | 'minute', event: Event) {
+  if (!customSubmissionTime.value) {
+    submissionHour.value = displayedSubmissionHour.value;
+    submissionMinute.value = displayedSubmissionMinute.value;
+    customSubmissionTime.value = true;
+  }
+  const value = (event.target as HTMLInputElement).value;
+  if (field === 'hour') submissionHour.value = value;
+  else submissionMinute.value = value;
 }
 async function changeScroll(checked: boolean) {
   await router.replace({ query: { ...route.query, feed: checked ? '1' : '0' } });
@@ -186,7 +213,7 @@ watch(key, async value => {
     activeKey = value; elapsed.value = options.value.startMinutes * 60000; speed.value = options.value.speed; manual.value = []; ownName.value = options.value.team;
     running.value = options.value.autoplay;
     try { restore(); } catch (e) { running.value = false; savingError.value = e instanceof Error ? e.message : '无法恢复本地进度。'; }
-    cursor = 0; feedKey.value++; problem.value = 0; reanchor(); redraw(false);
+    cursor = 0; feedKey.value++; problem.value = 0; customSubmissionTime.value = false; reanchor(); redraw(false);
     save();
   } catch (e) { if (request === generation) error.value = e instanceof Error ? e.message : '比赛加载失败，请返回合集重选。'; }
   finally { if (request === generation) loading.value = false; }
@@ -212,7 +239,7 @@ onBeforeUnmount(() => {
   <section v-else-if="ranklist" class="vp-board min-w-0" :style="viewportStyle" data-id="vp-ranklist-content">
     <Head><title>{{ formatTitle(`VP: ${resolveText(ranklist.contest.title)}`) }}</title></Head>
     <p v-if="savingError" class="mx-4 mb-4 text-sm text-muted-foreground" role="status">{{ savingError }}</p>
-    <div class="mx-4 mb-4 flex flex-wrap items-center gap-3">
+    <div class="mx-4 mb-2 flex flex-wrap items-center justify-center gap-3">
       <Button size="sm" :disabled="ended" @click="toggleRunning">{{ ended ? '比赛结束' : running ? '暂停' : elapsed ? '继续虚拟参赛' : '开始虚拟参赛' }}</Button>
       <label class="inline-flex items-center gap-2 text-sm">倍速
         <select class="srk-ranklist-org-select !w-auto" :value="speed" aria-label="虚拟参赛倍速" @change="setSpeed">
@@ -220,23 +247,32 @@ onBeforeUnmount(() => {
         </select>
       </label>
       <Button size="sm" variant="outline" @click="resetOpen = true">重新开始</Button>
-      <Button size="sm" variant="outline" @click="backToSetup">选赛配置</Button>
-      <span v-if="ccpc26Active" class="text-sm text-primary">CCPC 2026 · 动态揭题</span>
       <Button v-if="!ownName" size="sm" variant="outline" @click="joinOpen = true">加入我的队伍</Button>
-      <template v-else>
+    </div>
+    <div v-if="ownName" class="mx-4 mb-4 flex flex-wrap items-center justify-center gap-3">
         <span class="text-sm">{{ ownName }}</span>
         <select v-model="problem" class="srk-ranklist-org-select !w-auto" aria-label="题目">
           <option v-for="(item, index) in ranklist.problems" :key="index" :value="index">{{ item.alias || index + 1 }}</option>
         </select>
         <select v-model="result" class="srk-ranklist-org-select !w-auto" aria-label="结果"><option value="AC">AC</option><option value="WA">WA</option></select>
-        <Button size="sm" :disabled="!running" @click="record">记录提交</Button>
-      </template>
-      <span class="text-sm text-muted-foreground">进度自动保存在此浏览器；做题与判题请使用原 OJ。</span>
+        <span class="inline-flex items-center gap-1.5 text-sm">
+          <span>提交时间</span>
+          <input class="h-8 w-16 rounded-md border border-input bg-background px-2 text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" aria-label="提交时间（时）" :aria-invalid="!!submissionTimeError" :aria-describedby="submissionTimeError ? 'submission-time-error' : undefined" type="number" min="0" :max="Math.floor(duration / 3_600_000)" step="1" :value="displayedSubmissionHour" @input="editSubmissionTime('hour', $event)" />
+          <span>时</span>
+          <input class="h-8 w-16 rounded-md border border-input bg-background px-2 text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" aria-label="提交时间（分）" :aria-invalid="!!submissionTimeError" :aria-describedby="submissionTimeError ? 'submission-time-error' : undefined" type="number" min="0" max="59" step="1" :value="displayedSubmissionMinute" @input="editSubmissionTime('minute', $event)" />
+          <span>分</span>
+          <Button size="sm" variant="ghost" :disabled="!customSubmissionTime" @click="customSubmissionTime = false">当前时间</Button>
+        </span>
+        <Button size="sm" :disabled="!running || !!submissionTimeError" @click="record">记录提交</Button>
     </div>
+    <p v-if="submissionTimeError" id="submission-time-error" class="mx-4 mb-2 text-center text-sm text-destructive" role="alert">{{ submissionTimeError }}</p>
     <StyledRanklist
       :data="ranklist" :name="key" :id="key" show-filter show-progress is-live fit-problem-columns
       :progress-time-delta="progressTimeDelta" :enable-time-travel="false" :replay-elapsed-ms="elapsed" :ccpc26-mode="true" table-class="ml-4 min-w-0 max-md:ml-0"
     >
+      <template #after-ref-links>
+        <p v-if="ccpc26Active" class="srk-ranklist-meta-line text-primary">CCPC 2026 · 动态揭题</p>
+      </template>
       <template #extra-action>
         <span v-if="clientWidth >= 768" class="inline-flex items-center gap-2 text-sm">
           <span>实时滚动提交状态</span>

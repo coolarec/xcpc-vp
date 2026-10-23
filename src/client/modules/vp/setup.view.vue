@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, shallowRef, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { ChevronLeft, ChevronRight, FileText, Folder, FolderOpen, Search, Settings, Shuffle, Trophy, X } from 'lucide-vue-next';
+import { ChevronRight, FileText, Folder, FolderOpen, Search, Settings, Shuffle, X } from 'lucide-vue-next';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import RightMenu from '@/components/layout/RightMenu.vue';
@@ -11,6 +11,24 @@ import { applyVPOptions, buildVPQuery, DEFAULT_VP_OPTIONS, readVPOptions } from 
 import { prepareReplay } from './replay';
 import { buildFinderTree, findFinderContestPath, flattenFinderContests, getFinderColumns, getFinderScope, selectedFinderNodes, type FinderContest, type FinderNode } from './finder-tree';
 import ContestPreview from './ContestPreview.vue';
+import icpcLogoBlack from '@/assets/icpc_logo_black.png';
+import icpcLogoWhite from '@/assets/icpc_logo_white.png';
+import ccpcLogoBlack from '@/assets/ccpc_logo_black.png';
+import ccpcLogoWhite from '@/assets/ccpc_logo_white.png';
+import provincialLogoBlack from '@/assets/provincial_cpc_logo_black.png';
+import provincialLogoWhite from '@/assets/provincial_cpc_logo_white.png';
+import universityLogoBlack from '@/assets/university-level_cpc_logo_black.png';
+import universityLogoWhite from '@/assets/university-level_cpc_logo_white.png';
+import ucupLogoBlack from '@/assets/ucup_logo_black.png';
+import ucupLogoWhite from '@/assets/ucup_logo_white.png';
+
+const directoryIcons: Record<string, { light: string; dark: string }> = {
+  ICPC: { light: icpcLogoBlack, dark: icpcLogoWhite },
+  CCPC: { light: ccpcLogoBlack, dark: ccpcLogoWhite },
+  省赛: { light: provincialLogoBlack, dark: provincialLogoWhite },
+  校赛: { light: universityLogoBlack, dark: universityLogoWhite },
+  'Universal Cup': { light: ucupLogoBlack, dark: ucupLogoWhite },
+};
 
 const api = useRanklandApi();
 const route = useRoute();
@@ -61,7 +79,6 @@ watch(() => current.value?.key, loadSelectedInfo);
 function choose(node: FinderNode, depth: number) {
   if (!busy.value) selectedPath.value = [...selectedPath.value.slice(0, depth), node.id];
 }
-function up() { if (!busy.value) selectedPath.value = selectedPath.value.slice(0, -1); }
 async function focusRow(depth: number, index: number) {
   await nextTick();
   columnsElement.value?.querySelector<HTMLButtonElement>(`[data-column="${depth}"] [data-row="${index}"]`)?.focus();
@@ -156,7 +173,6 @@ onBeforeUnmount(() => { generation++; previewGeneration++; });
     </div>
     <div class="finder-window">
       <div class="finder-pathbar">
-        <Button variant="ghost" size="icon" class="h-7 w-7" aria-label="返回上一级" :disabled="!selectedPath.length || busy" @click="up"><ChevronLeft :size="16" /></Button>
         <nav aria-label="当前选择路径"><button :disabled="busy" @click="selectedPath = []">全部赛事</button><template v-for="(node, index) in selection" :key="node.id"><ChevronRight :size="12" /><button :title="node.label" :disabled="busy" @click="selectedPath = selectedPath.slice(0, index + 1)">{{ node.label }}</button></template></nav>
         <span class="finder-source">RankLand 官方合集</span>
       </div>
@@ -166,7 +182,7 @@ onBeforeUnmount(() => { generation++; previewGeneration++; });
           <section v-for="(column, depth) in columns" :key="`${depth}:${selectedPath[depth - 1] || 'root'}`" :data-column="depth" class="finder-column" :class="{ 'finder-column-first': depth === 0 }">
             <div class="finder-column-list" role="listbox" :aria-label="column.title">
               <button v-for="(node, index) in column.nodes" :key="node.id" :data-row="index" type="button" role="option" :aria-selected="selectedPath[depth] === node.id" :tabindex="selectedPath[depth] === node.id || (!selectedPath[depth] && index === 0) ? 0 : -1" :title="node.label" :disabled="busy" class="finder-row" :class="{ selected: selectedPath[depth] === node.id }" @click="choose(node, depth)" @keydown="onColumnKey($event, depth, index)">
-                <Trophy v-if="depth === 0" :size="16" class="finder-folder-icon" /><FileText v-else-if="node.kind === 'contest'" :size="16" /><FolderOpen v-else-if="selectedPath[depth] === node.id" :size="16" class="finder-folder-icon" /><Folder v-else :size="16" class="finder-folder-icon" />
+                <span v-if="depth === 0 && directoryIcons[node.label]" class="finder-event-icon" aria-hidden="true"><img :src="directoryIcons[node.label].light" alt="" class="block dark:hidden" /><img :src="directoryIcons[node.label].dark" alt="" class="hidden dark:block" /></span><FileText v-else-if="node.kind === 'contest'" :size="16" /><FolderOpen v-else-if="selectedPath[depth] === node.id" :size="16" class="finder-folder-icon" /><Folder v-else :size="16" class="finder-folder-icon" />
                 <span class="finder-row-name">{{ node.label }}</span><small v-if="node.kind === 'folder'">{{ node.count }}</small><ChevronRight v-if="node.kind === 'folder'" :size="13" class="finder-row-chevron" />
               </button>
               <p v-if="!column.nodes.length" class="finder-empty-list">{{ search ? '没有找到匹配的比赛' : '暂无比赛' }}</p>
@@ -182,10 +198,8 @@ onBeforeUnmount(() => { generation++; previewGeneration++; });
           <div class="finder-config-fields">
             <label class="finder-field"><span>赛制</span><select v-model="options.rule" class="finder-select" aria-label="赛制" :disabled="busy"><option value="auto">跟随原比赛</option><option value="ICPC">ICPC / 传统 CCPC</option><option value="CCPC26">CCPC 2026</option></select></label>
             <div class="finder-field-grid"><label class="finder-field"><span>回放倍速</span><select v-model="options.speed" class="finder-select" aria-label="回放倍速" :disabled="busy"><option v-for="value in [1, 2, 5, 10, 30, 60]" :key="value" :value="value">{{ value }}×</option></select></label><label class="finder-field"><span>起始时间 / 分钟</span><Input v-model.number="options.startMinutes" class="h-8" aria-label="起始时间（分钟）" type="number" min="0" max="10080" step="1" :disabled="busy" /></label></div>
-            <label class="finder-field"><span>额外罚时 / 分钟</span><input :value="options.penaltyMinutes ?? ''" class="finder-select" aria-label="额外罚时（分钟）" type="number" min="0" max="1440" placeholder="留空使用原比赛设置" :disabled="busy" @input="options.penaltyMinutes = ($event.target as HTMLInputElement).value === '' ? null : Number(($event.target as HTMLInputElement).value)" /></label>
             <div v-if="options.rule === 'CCPC26'" class="finder-reveal"><span>CCPC 2026 揭题阈值</span><div class="finder-field-grid"><label class="finder-field"><span>通过队伍数</span><Input v-model.number="options.revealCount" class="h-8" aria-label="揭题队伍数" type="number" min="0" max="100000" step="1" :disabled="busy" /></label><label class="finder-field"><span>通过比例 / %</span><Input v-model.number="options.revealRatio" class="h-8" aria-label="揭题比例（%）" type="number" min="0" max="100" step="0.1" :disabled="busy" /></label></div><p>满足任一阈值即揭题；0 表示关闭该项。</p></div>
             <label class="finder-field"><span>我的队伍名称 <small>可选</small></span><Input v-model="options.team" class="h-8" aria-label="我的队伍名称" maxlength="80" placeholder="加入榜单，手动同步 AC / WA" :disabled="busy" /></label>
-            <p class="finder-config-note">进度保存在此浏览器。做题与判题请使用原 OJ。</p>
           </div>
           <div class="finder-config-actions"><p v-if="error" class="finder-error" role="alert">{{ error }}</p><Button v-if="!loading && !contests.length" variant="outline" size="sm" class="w-full" @click="load">重新加载合集</Button><Button size="sm" class="w-full" :disabled="loading || busy || !current" @click="start(false)">{{ busy ? '正在检查比赛数据…' : '开始虚拟参赛' }}<ChevronRight v-if="!busy" :size="14" /></Button><Button size="sm" variant="outline" class="w-full" :disabled="loading || busy || !scope.length" @click="start(true)"><Shuffle :size="14" />从当前范围随机一场</Button></div>
         </aside>
@@ -226,6 +240,8 @@ onBeforeUnmount(() => { generation++; previewGeneration++; });
 .finder-row:focus-visible { outline: 1px solid hsl(var(--primary)); outline-offset: -1px; }
 .finder-row:disabled { opacity: .6; cursor: wait; }
 .finder-row > svg { flex-shrink: 0; color: hsl(var(--muted-foreground)); }
+.finder-event-icon { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; flex-shrink: 0; }
+.finder-event-icon img { width: 28px; height: 28px; object-fit: contain; }
 .finder-row .finder-folder-icon { color: hsl(var(--primary) / .75); }
 .finder-row.selected > svg { color: hsl(var(--primary)); }
 .finder-row-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -252,7 +268,6 @@ onBeforeUnmount(() => { generation++; previewGeneration++; });
 .finder-select:disabled { opacity: .5; }
 .finder-reveal { display: flex; flex-direction: column; gap: 10px; padding-top: 13px; border-top: 1px solid hsl(var(--border)); font-size: 12px; }
 .finder-reveal > p { margin: 0; font-size: 10px; color: hsl(var(--muted-foreground)); line-height: 1.7; }
-.finder-config-note { margin: 0; font-size: 10px; color: hsl(var(--muted-foreground)); line-height: 1.8; }
 .finder-config-actions { display: flex; flex-direction: column; flex-shrink: 0; gap: 8px; padding: 12px 18px; margin-top: auto; border-top: 1px solid hsl(var(--border)); }
 .finder-error { margin: 0; font-size: 11px; line-height: 1.75; color: hsl(var(--destructive)); overflow-wrap: anywhere; }
 .finder-statusbar { display: flex; align-items: center; justify-content: space-between; gap: 16px; min-height: 31px; padding: 5px 14px; border-top: 1px solid hsl(var(--border)); font-size: 10px; color: hsl(var(--muted-foreground)); background: hsl(var(--muted) / .25); }
@@ -281,7 +296,7 @@ onBeforeUnmount(() => { generation++; previewGeneration++; });
   .finder-config { flex: none; width: 100%; min-width: 0; border-left: 0; border-top: 1px solid hsl(var(--border)); overflow: visible; }
   .finder-config-heading { padding: 14px 16px; }
   .finder-config-fields { flex: none; overflow: visible; padding: 16px; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; }
-  .finder-config-fields > .finder-field, .finder-field-grid, .finder-reveal, .finder-config-note { grid-column: 1 / -1; }
+  .finder-config-fields > .finder-field, .finder-field-grid, .finder-reveal { grid-column: 1 / -1; }
   .finder-config-actions { padding: 14px 16px; }
   .finder-pathbar { padding: 5px 8px; }
   .finder-pathbar nav { font-size: 11px; }

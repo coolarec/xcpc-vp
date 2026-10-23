@@ -8,13 +8,12 @@ export interface VPOptions {
   feed: boolean;
   revealCount: number;
   revealRatio: number;
-  penaltyMinutes: number | null;
   autoplay: boolean;
 }
 
 export const DEFAULT_VP_OPTIONS: VPOptions = {
   rule: 'auto', speed: 1, startMinutes: 0, team: '', feed: true,
-  revealCount: 50, revealRatio: 20, penaltyMinutes: null, autoplay: false,
+  revealCount: 50, revealRatio: 20, autoplay: false,
 };
 
 function value(query: Record<string, unknown>, key: string): string | undefined {
@@ -49,7 +48,6 @@ export function readVPOptions(query: Record<string, unknown>): VPOptions {
   return {
     rule: rule as VPOptions['rule'], speed, team, feed: feed !== '0', autoplay: play === '1',
     startMinutes: numeric(query, 'from', 0, 10080), revealCount, revealRatio,
-    penaltyMinutes: value(query, 'penalty') === undefined ? null : numeric(query, 'penalty', 20, 1440),
   };
 }
 
@@ -60,7 +58,6 @@ export function buildVPQuery(contest: string, options: VPOptions, run: string): 
     from: String(options.startMinutes), feed: options.feed ? '1' : '0', play: options.autoplay ? '1' : '0',
   };
   if (options.team.trim()) query.team = options.team.trim();
-  if (options.penaltyMinutes !== null) query.penalty = String(options.penaltyMinutes);
   if (options.rule === 'CCPC26') {
     query.count = String(options.revealCount);
     query.ratio = String(options.revealRatio);
@@ -83,6 +80,6 @@ export function applyVPOptions(source: srk.Ranklist, options: VPOptions): srk.Ra
       },
     } }];
   }
-  if (options.penaltyMinutes !== null) sorter.config.penalty = [options.penaltyMinutes, 'min'];
+  sorter.config.penalty = [20, 'min'];
   return data;
 }
