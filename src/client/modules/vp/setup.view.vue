@@ -182,7 +182,7 @@ onBeforeUnmount(() => { generation++; previewGeneration++; });
           <section v-for="(column, depth) in columns" :key="`${depth}:${selectedPath[depth - 1] || 'root'}`" :data-column="depth" class="finder-column" :class="{ 'finder-column-first': depth === 0 }">
             <div class="finder-column-list" role="listbox" :aria-label="column.title">
               <button v-for="(node, index) in column.nodes" :key="node.id" :data-row="index" type="button" role="option" :aria-selected="selectedPath[depth] === node.id" :tabindex="selectedPath[depth] === node.id || (!selectedPath[depth] && index === 0) ? 0 : -1" :title="node.label" :disabled="busy" class="finder-row" :class="{ selected: selectedPath[depth] === node.id }" @click="choose(node, depth)" @keydown="onColumnKey($event, depth, index)">
-                <span v-if="depth === 0 && directoryIcons[node.label]" class="finder-event-icon" aria-hidden="true"><img :src="directoryIcons[node.label].light" alt="" class="block dark:hidden" /><img :src="directoryIcons[node.label].dark" alt="" class="hidden dark:block" /></span><FileText v-else-if="node.kind === 'contest'" :size="16" /><FolderOpen v-else-if="selectedPath[depth] === node.id" :size="16" class="finder-folder-icon" /><Folder v-else :size="16" class="finder-folder-icon" />
+                <span v-if="depth === 0 && directoryIcons[node.label]" class="finder-event-icon" :style="{ '--finder-event-mask': `url('${directoryIcons[node.label].light}')` }" aria-hidden="true"><img :src="directoryIcons[node.label].light" alt="" class="block dark:hidden" /><img :src="directoryIcons[node.label].dark" alt="" class="hidden dark:block" /></span><FileText v-else-if="node.kind === 'contest'" :size="16" /><FolderOpen v-else-if="selectedPath[depth] === node.id" :size="16" class="finder-folder-icon" /><Folder v-else :size="16" class="finder-folder-icon" />
                 <span class="finder-row-name">{{ node.label }}</span><small v-if="node.kind === 'folder'">{{ node.count }}</small><ChevronRight v-if="node.kind === 'folder'" :size="13" class="finder-row-chevron" />
               </button>
               <p v-if="!column.nodes.length" class="finder-empty-list">{{ search ? '没有找到匹配的比赛' : '暂无比赛' }}</p>
@@ -242,6 +242,8 @@ onBeforeUnmount(() => { generation++; previewGeneration++; });
 .finder-row > svg { flex-shrink: 0; color: hsl(var(--muted-foreground)); }
 .finder-event-icon { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; flex-shrink: 0; }
 .finder-event-icon img { width: 28px; height: 28px; object-fit: contain; }
+.finder-row.selected .finder-event-icon { background-color: currentColor; -webkit-mask: var(--finder-event-mask) center / contain no-repeat; mask: var(--finder-event-mask) center / contain no-repeat; }
+.finder-row.selected .finder-event-icon img { visibility: hidden; }
 .finder-row .finder-folder-icon { color: hsl(var(--primary) / .75); }
 .finder-row.selected > svg { color: hsl(var(--primary)); }
 .finder-row-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
