@@ -20,7 +20,7 @@ const durationText = computed(() => {
     <div v-if="loading" class="preview-state"><Loading /><p>正在读取比赛信息…</p></div>
     <div v-else-if="error" class="preview-state"><Info :size="22" /><p role="alert">{{ error }}</p><Button size="sm" variant="outline" @click="emit('retry')">重新加载</Button></div>
     <template v-else-if="summary">
-      <div class="preview-heading"><FileText :size="22" /><h2>{{ summary.title || data?.info.name }}</h2><p>{{ summary.date || '日期未提供' }} · {{ durationText }}</p><span>{{ summary.rule }}</span></div>
+      <div class="preview-heading"><FileText :size="22" /><h2>{{ summary.title || data?.info.name }}<a v-if="data" :href="`https://rl.algoux.cn/ranklist/${encodeURIComponent(data.info.uniqueKey)}`" target="_blank" rel="noopener noreferrer" class="ml-2 inline-flex items-center gap-1 whitespace-nowrap align-middle text-xs font-normal text-primary hover:underline" aria-label="在 RankLand 查看原榜单">RankLand<ExternalLink :size="12" /></a></h2><p>{{ summary.date || '日期未提供' }} · {{ durationText }}</p><span>{{ summary.rule }}</span></div>
       <dl class="preview-metrics">
         <div><dt>学校 / 单位</dt><dd>{{ summary.schools || (summary.missingOrganizations ? '未提供' : 0) }}</dd></div>
         <div><dt>参赛队伍</dt><dd>{{ summary.teams }}</dd></div>

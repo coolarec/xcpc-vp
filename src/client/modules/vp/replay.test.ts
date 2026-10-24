@@ -12,7 +12,7 @@ function ranklist(status: srk.RankProblemStatus, noPenaltyResults?: srk.Solution
   };
 }
 
-describe('replay history validation', () => {
+describe('replay supplied history', () => {
   it('replays complete CE-only histories marked RJ with zero effective tries', () => {
     const solutions: srk.RankProblemStatus['solutions'] = [
       { result: 'CE', time: [16_766_923, 'ms'] },
@@ -53,8 +53,38 @@ describe('replay history validation', () => {
     expect(final.score.value).toBe(0);
   });
 
-  it('still rejects a rejected summary without any submission history', () => {
-    expect(() => prepareReplay(ranklist({ result: 'RJ', tries: 0, solutions: [] }))).toThrow(/partial/);
+  it.each<srk.RankProblemStatus>([
+    { result: 'RJ', tries: 0, solutions: [] },
+    { result: 'RJ', tries: 3 },
+    { result: 'AC', tries: 2, time: [10, 'min'], solutions: [] },
+    { result: 'FB', tries: 1, time: [10, 'min'] },
+    { result: '?', tries: 1 },
+    { result: null, tries: 2, solutions: [] },
+  ])('loads summaries without submission history: %j', status => {
+    const data = ranklist(status);
+    data.rows[0].user.id = '东北大学_东北大鱼棒';
+    const original = JSON.stringify(data);
+    const replay = prepareReplay(data);
+    expect(replay.solutions).toEqual([]);
+    expect(replay.snapshotAt(replay.durationMs).rows[0]).toMatchObject({
+      user: { id: '东北大学_东北大鱼棒' },
+      score: { value: 0 },
+      statuses: [{ result: null, solutions: [] }],
+    });
+    expect(JSON.stringify(data)).toBe(original);
+  });
+
+  it('replays available submissions when another problem has no history', () => {
+    const data = ranklist({ result: 'AC', tries: 2, time: [10, 'min'] });
+    data.problems.push({ alias: 'D' });
+    data.rows[0].statuses.push({ result: 'AC', tries: 1, solutions: [{ result: 'AC', time: [20, 'min'] }] });
+    const replay = prepareReplay(data);
+    expect(replay.solutions).toHaveLength(1);
+    expect(replay.snapshotAt(600_000).rows[0].score.value).toBe(0);
+    expect(replay.snapshotAt(1_200_000).rows[0]).toMatchObject({
+      score: { value: 1, time: [1_200_000, 'ms'] },
+      statuses: [{ result: null, solutions: [] }, { tries: 1 }],
+    });
   });
 
   it('counts CE when the contest config makes it a penalty result', () => {

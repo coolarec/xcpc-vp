@@ -7,8 +7,6 @@ import {
   regenerateRanklistBySolutions,
 } from '@algoux/standard-ranklist-utils';
 import type { CalculatedSolutionTetrad } from '@algoux/standard-ranklist-utils';
-import { createCheckers } from 'ts-interface-checker';
-import checkerSuite from '../../lib/srk-checker/index.d.ti';
 
 export type { CalculatedSolutionTetrad } from '@algoux/standard-ranklist-utils';
 export const OWN_ID = '__vp_self__';
@@ -28,7 +26,6 @@ export interface PreparedReplay {
   snapshotAt(ms: number, manual?: ManualSubmission[], ownName?: string): srk.Ranklist;
 }
 
-const { Ranklist: ranklistChecker } = createCheckers(checkerSuite);
 const clone = <T>(value: T): T => JSON.parse(JSON.stringify(value));
 const emptyStatuses = (count: number): srk.RankProblemStatus[] =>
   Array.from({ length: count }, () => ({ result: null, solutions: [] }));
@@ -47,7 +44,6 @@ function milliseconds(time: srk.TimeDuration, path: string): number {
 
 /** Replay supplied submissions with official SRK scoring, without synthesizing history. */
 export function prepareReplay(data: srk.Ranklist): PreparedReplay {
-  ranklistChecker.check(data);
   if (!canRegenerateRanklist(data) || !/^0\.3\.\d+$/.test(data.version)) {
     throw new Error('VP 仅支持 SRK 0.3.x 的 ICPC 比赛，不支持积分赛。');
   }
@@ -71,28 +67,6 @@ export function prepareReplay(data: srk.Ranklist): PreparedReplay {
   }
   if (data.sorter?.algorithm === 'ICPC' && data.sorter.config.penalty) {
     milliseconds(data.sorter.config.penalty, 'sorter.config.penalty');
-  }
-  const ids = new Set<string>();
-  for (const row of data.rows) {
-    const id = row.user.id;
-    if (!id.trim() || id === OWN_ID || ids.has(id)) throw new Error(`无效、重复或保留的 user.id: ${id}`);
-    ids.add(id);
-    if (row.statuses.length !== data.problems.length) throw new Error(`${id}: statuses 数量与题目数不符。`);
-    for (const [index, status] of row.statuses.entries()) {
-      const path = `${id}.statuses[${index}]`;
-      if (status.tries !== undefined && (!Number.isSafeInteger(status.tries) || status.tries < 0)) {
-        throw new Error(`${path}: tries 必须是非负整数。`);
-      }
-      if (status.time) milliseconds(status.time, `${path}.time`);
-      if (!status.solutions?.length && (status.result !== null || (status.tries || 0) > 0)) {
-        throw new Error(`${path}: 提交历史不完整（partial），无法准确重放；需要完整 solutions，不会补造 WA 时间。`);
-      }
-      for (const solution of status.solutions || []) {
-        if (!solution.result.trim() || milliseconds(solution.time, `${path}.solutions.time`) > durationMs) {
-          throw new Error(`${path}: 提交结果为空或时间超出赛长。`);
-        }
-      }
-    }
   }
   const template = clone(data);
   template.rows.sort(byUserId);

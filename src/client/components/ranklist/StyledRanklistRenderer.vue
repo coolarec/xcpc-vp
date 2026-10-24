@@ -48,7 +48,7 @@ import {
 } from '@algoux/standard-ranklist-convert-to';
 import FileSaver from 'file-saver';
 import copy from 'copy-to-clipboard';
-import { ChevronDown, Download, Eye, FilePenLine, Settings, Share2 } from 'lucide-vue-next';
+import { ChevronDown, Download, ExternalLink, Eye, FilePenLine, Settings, Share2 } from 'lucide-vue-next';
 import { ToggleGroupItem, ToggleGroupRoot } from 'radix-vue';
 import { toast } from 'vue-sonner';
 import { THEME_TOKEN } from '@/lib/theme';
@@ -1070,7 +1070,12 @@ function resolveDisplayText(text: Parameters<typeof resolveText>[0]) {
         style="max-width: min(100%, 1820px); max-height: 40vh"
       />
     </div>
-    <h1 class="srk-ranklist-title">{{ resolveDisplayText(staticData.contest.title) }}</h1>
+    <h1 class="srk-ranklist-title">
+      {{ resolveDisplayText(staticData.contest.title) }}
+      <a v-if="id" :href="`https://rl.algoux.cn/ranklist/${encodeURIComponent(id)}`" target="_blank" rel="noopener noreferrer" class="ml-2 inline-flex items-center gap-1 whitespace-nowrap align-middle text-sm font-normal text-primary hover:underline" aria-label="在 RankLand 查看原榜单">
+        RankLand<ExternalLink :size="14" />
+      </a>
+    </h1>
     <div class="srk-ranklist-meta">
       <span v-if="hasMetaViewCount" class="srk-ranklist-meta-item">
         <Eye class="srk-ranklist-meta-icon" /> {{ meta?.viewCnt }}
