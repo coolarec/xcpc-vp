@@ -212,7 +212,7 @@ onBeforeUnmount(() => { generation++; previewGeneration++; });
 </template>
 
 <style scoped>
-.finder-page { max-width: 1320px; margin: 0 auto; min-width: 0; }
+.finder-page { max-width: 1200px; margin: 0 auto; min-width: 0; }
 .finder-page-heading { display: flex; align-items: center; gap: 20px; min-height: 40px; margin-bottom: 18px; }
 .finder-title { display: flex; align-items: baseline; gap: 12px; flex-shrink: 0; }
 .finder-title h1 { margin: 0; font-size: 24px; font-weight: 500; }

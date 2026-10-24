@@ -13,6 +13,6 @@ const contestKey = computed(() => typeof route.query.contest === 'string' ? rout
   <SetupView v-else />
   <footer class="mt-6 text-center text-xs leading-6 text-muted-foreground">
     <div>本网站数据来源 Rankland，访问 <a href="https://rank.ac" class="text-primary hover:underline">rank.ac</a> 自动跳转</div>
-    <div>Thanks to algoUX and CoolArec ❤️</div>
+    <div>Thanks to <a href="https://algoux.org/" target="_blank" rel="noopener noreferrer" class="text-primary hover:underline">algoUX</a> and <a href="https://www.coolarec.link/" target="_blank" rel="noopener noreferrer" class="text-primary hover:underline">CoolArec</a> ❤️</div>
   </footer>
 </template>
