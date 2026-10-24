@@ -11,6 +11,6 @@ it('fixes VP penalty at 20 minutes and ignores obsolete penalty URL parameters',
   };
   const options = readVPOptions({ penalty: '7' });
   expect(applyVPOptions(source, options).sorter).toMatchObject({ config: { penalty: [20, 'min'] } });
-  expect(buildVPQuery('test', options, 'run')).not.toHaveProperty('penalty');
+  expect(buildVPQuery('test', options)).not.toHaveProperty('penalty');
   expect(source.sorter).toMatchObject({ config: { penalty: [7, 'min'] } });
 });

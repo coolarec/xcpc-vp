@@ -23,7 +23,7 @@ describe('manual submission hours and minutes', () => {
     };
     const replay = prepareReplay(data);
     const timeMs = parseSubmissionTime('1', '5', 7_200_000, replay.durationMs);
-    const own = replay.snapshotAt(7_200_000, [{ id: 'manual', problemIndex: 0, timeMs, result: 'AC' }], 'Own').rows.find(row => row.user.id === OWN_ID)!;
+    const own = replay.snapshotAt(7_200_000, [{ problemIndex: 0, timeMs, result: 'AC' }], 'Own').rows.find(row => row.user.id === OWN_ID)!;
     expect(own.score.value).toBe(1);
     expect(own.statuses[0].time).toEqual([3_900_000, 'ms']);
     expect(own.score.time?.[0]).toBe(3_900_000);

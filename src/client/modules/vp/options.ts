@@ -51,10 +51,10 @@ export function readVPOptions(query: Record<string, unknown>): VPOptions {
   };
 }
 
-export function buildVPQuery(contest: string, options: VPOptions, run: string): Record<string, string> {
+export function buildVPQuery(contest: string, options: VPOptions): Record<string, string> {
   if (!/^[a-zA-Z0-9][a-zA-Z0-9._-]{0,127}$/.test(contest)) throw new Error('比赛 ID 无效。');
   const query: Record<string, string> = {
-    contest, run, rule: options.rule, speed: String(options.speed),
+    contest, rule: options.rule, speed: String(options.speed),
     from: String(options.startMinutes), feed: options.feed ? '1' : '0', play: options.autoplay ? '1' : '0',
   };
   if (options.team.trim()) query.team = options.team.trim();

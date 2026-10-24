@@ -138,7 +138,7 @@ async function start(random = false) {
   try {
     const candidates = random ? [...scope.value] : current.value ? [current.value] : [];
     if (!candidates.length) throw new Error('请先在分栏中选择一场比赛。');
-    const settings = readVPOptions(buildVPQuery(candidates[0].key, options, 'validate'));
+    const settings = readVPOptions(buildVPQuery(candidates[0].key, options));
     if (random) for (let i = candidates.length - 1; i > 0; i--) {
       const j = Math.floor((crypto.getRandomValues(new Uint32Array(1))[0] / 2 ** 32) * (i + 1));
       [candidates[i], candidates[j]] = [candidates[j], candidates[i]];
@@ -153,7 +153,7 @@ async function start(random = false) {
         const replay = prepareReplay(applyVPOptions(data.srk, settings));
         if (settings.startMinutes * 60000 >= replay.durationMs) throw new Error('起始时间必须小于比赛时长。');
         selectedPath.value = findFinderContestPath(tree.value, candidate.key) || [];
-        await router.push({ path: '/', query: buildVPQuery(candidate.key, settings, crypto.randomUUID()) });
+        await router.push({ path: '/', query: buildVPQuery(candidate.key, settings) });
         return;
       } catch (e) { lastError = e; if (!random) throw e; }
     }

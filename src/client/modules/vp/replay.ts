@@ -14,7 +14,6 @@ export type { CalculatedSolutionTetrad } from '@algoux/standard-ranklist-utils';
 export const OWN_ID = '__vp_self__';
 
 export interface ManualSubmission {
-  id: string;
   problemIndex: number;
   timeMs: number;
   result: 'AC' | 'WA';
@@ -118,15 +117,13 @@ export function prepareReplay(data: srk.Ranklist): PreparedReplay {
         score: { value: 0 },
         statuses: emptyStatuses(template.problems.length),
       };
-      const manualIds = new Set<string>();
       for (const submission of manual) {
-        if (!submission || typeof submission.id !== 'string' || !submission.id.trim() || manualIds.has(submission.id) ||
+        if (!submission ||
             !Number.isInteger(submission.problemIndex) || submission.problemIndex < 0 || submission.problemIndex >= own.statuses.length ||
             !Number.isFinite(submission.timeMs) || submission.timeMs < 0 || submission.timeMs > durationMs ||
             (submission.result !== 'AC' && submission.result !== 'WA')) {
-          throw new Error('无效的手动提交：需要唯一 id、有效题号、比赛内时间及 AC/WA。');
+          throw new Error('无效的手动提交：需要有效题号、比赛内时间及 AC/WA。');
         }
-        manualIds.add(submission.id);
         own.statuses[submission.problemIndex].solutions!.push({ result: submission.result, time: [submission.timeMs, 'ms'] });
       }
       const hasOwn = !!ownName.trim() || manual.length > 0;

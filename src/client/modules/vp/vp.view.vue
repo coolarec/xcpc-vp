@@ -46,6 +46,7 @@ const feedKey = ref(0);
 const clientWidth = ref(window.innerWidth);
 const clientHeight = ref(window.innerHeight);
 const key = computed(() => typeof route.query.contest === 'string' ? route.query.contest : '');
+// Keep old run links able to restore their saved progress; new links omit run.
 const run = computed(() => typeof route.query.run === 'string' ? route.query.run : 'default');
 const enabledScrollSolution = computed(() => route.query.feed !== '0' && clientWidth.value >= 768);
 const duration = computed(() => replay.value?.durationMs || 0);
@@ -89,13 +90,11 @@ function restore() {
       !Number.isFinite(state.savedAt) || ![1, 2, 5, 10, 30, 60].includes(state.speed) ||
       typeof state.running !== 'boolean' || typeof state.ownName !== 'string' || state.ownName.length > 80 ||
       !Array.isArray(state.manual) || state.manual.length > 10000) throw new Error('保存的 VP 进度格式无效。');
-  const ids = new Set<string>();
   for (const submission of state.manual) {
-    if (!submission || typeof submission.id !== 'string' || ids.has(submission.id) ||
+    if (!submission ||
         !Number.isInteger(submission.problemIndex) || submission.problemIndex < 0 || submission.problemIndex >= replay.value.source.problems.length ||
         !['AC', 'WA'].includes(submission.result) || typeof submission.timeMs !== 'number' || !Number.isFinite(submission.timeMs) ||
         submission.timeMs < 0 || submission.timeMs > duration.value) throw new Error('保存的提交记录格式无效。');
-    ids.add(submission.id);
   }
   ownName.value = state.ownName;
   manual.value = state.manual;
@@ -163,7 +162,7 @@ function record() {
     : elapsed.value;
   const own = ranklist.value?.rows.find(row => row.user.id === '__vp_self__');
   if (['AC', 'FB'].includes(own?.statuses[problem.value]?.result || '')) return;
-  manual.value = [...manual.value, { id: crypto.randomUUID(), problemIndex: problem.value, timeMs, result: result.value }];
+  manual.value = [...manual.value, { problemIndex: problem.value, timeMs, result: result.value }];
   redraw(false); save();
   const updatedOwn = ranklist.value.rows.find(row => row.user.id === '__vp_self__');
   scrollSolution.value?.pushSolutions([{
