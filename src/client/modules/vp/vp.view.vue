@@ -120,7 +120,9 @@ function redraw(pushEvents = true) {
     return {
       problem: { alias: revealedProblems.value && !revealedProblems.value.has(solution[1]) ? '?' : ranklist.value.problems[solution[1]].alias || String(solution[1] + 1) },
       score: { value: row?.score.value || 0 },
-      result: (revealedProblems.value && !revealedProblems.value.has(solution[1]) && solution[2] === 'FB' ? 'AC' : solution[2]) as ScrollSolutionDataItem['result'],
+      result: (!ended.value && formatTimeDuration(solution[3], 'ms') >= replay.value.frozenAtMs
+        ? '?'
+        : revealedProblems.value && !revealedProblems.value.has(solution[1]) && solution[2] === 'FB' ? 'AC' : solution[2]) as ScrollSolutionDataItem['result'],
       user: { name: row?.user.name || solution[0], organization: row?.user.organization },
     };
   });
@@ -130,7 +132,7 @@ function tick() {
   now.value = Date.now();
   if (!running.value || !replay.value) return;
   elapsed.value = Math.min(duration.value, anchorElapsed + Math.max(0, now.value - anchorTime) * speed.value);
-  if (solutionTime(cursor) <= elapsed.value) redraw();
+  if (solutionTime(cursor) <= elapsed.value || ended.value) redraw();
   if (ended.value) { running.value = false; save(); }
   else if (now.value - lastSaved > 5000) save();
 }

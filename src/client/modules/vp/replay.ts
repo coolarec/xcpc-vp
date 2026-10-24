@@ -23,6 +23,7 @@ export interface PreparedReplay {
   /** Clean starting board, ordered by user.id rather than final rank. */
   source: srk.Ranklist;
   durationMs: number;
+  frozenAtMs: number;
   solutions: CalculatedSolutionTetrad[];
   snapshotAt(ms: number, manual?: ManualSubmission[], ownName?: string): srk.Ranklist;
 }
@@ -63,6 +64,7 @@ export function prepareReplay(data: srk.Ranklist): PreparedReplay {
   }
   const durationMs = milliseconds(data.contest.duration, 'contest.duration');
   if (!durationMs || !data.problems.length) throw new Error('VP 需要正数赛长及至少一道题目。');
+  const frozenAtMs = Math.max(0, durationMs - (data.contest.frozenDuration ? milliseconds(data.contest.frozenDuration, 'contest.frozenDuration') : 0));
   const startMs = Date.parse(data.contest.startAt);
   if (!Number.isFinite(startMs) || !Number.isFinite(new Date(startMs + durationMs).getTime())) {
     throw new Error('contest.startAt: 无效比赛时间。');
@@ -107,6 +109,7 @@ export function prepareReplay(data: srk.Ranklist): PreparedReplay {
   return {
     source: clone(baseline),
     durationMs,
+    frozenAtMs,
     solutions: clone(solutions),
     snapshotAt(ms, manual = [], ownName = '') {
       if (!Number.isFinite(ms)) throw new Error('重放时间必须是有限数。');
@@ -129,7 +132,12 @@ export function prepareReplay(data: srk.Ranklist): PreparedReplay {
       const hasOwn = !!ownName.trim() || manual.length > 0;
       const events = hasOwn ? getSortedCalculatedRawSolutions([...timelineRows, own]) : solutions;
       const input = hasOwn ? { ...baseline, rows: [...baseline.rows, own].sort(byUserId) } : baseline;
-      const snapshot = regenerateRanklistBySolutions(input, filterSolutionsUntil(events, [timeMs, 'ms']));
+      const visibleSolutions = filterSolutionsUntil(events, [timeMs, 'ms']).map((solution): CalculatedSolutionTetrad =>
+        timeMs < durationMs && solution[0] !== OWN_ID && formatTimeDuration(solution[3], 'ms') >= frozenAtMs
+          ? [solution[0], solution[1], '?', solution[3]]
+          : solution,
+      );
+      const snapshot = regenerateRanklistBySolutions(input, visibleSolutions);
       snapshot._now = new Date(startMs + timeMs).toISOString();
       // Official regeneration reuses users/solution tuples; detach the public snapshot.
       return clone(snapshot);
