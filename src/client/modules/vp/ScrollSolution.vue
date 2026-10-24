@@ -6,7 +6,7 @@
         :key="item.key"
         class="plugin_scroll-solution-toast"
       >
-        <div class="container">
+        <div class="plugin_scroll-solution-row">
           <div class="score">{{ item.data.score.value }}</div>
           <div class="user">
             <span class="user-name">{{ resolveDisplayText(item.data.user.name) }}</span>
@@ -180,7 +180,7 @@ defineExpose({
   pointer-events: none;
 }
 
-:global(.dark) .plugin_scroll-solution-container {
+:global(.dark .plugin_scroll-solution-container) {
   --bg: #272727;
   --text: rgb(223, 223, 233);
   --color-user-second-name: #a5a5a5;
@@ -198,7 +198,7 @@ defineExpose({
   font-family: "Helvetica Neue", Helvetica, "Microsoft Yahei", Arial, sans-serif;
 }
 
-.container {
+.plugin_scroll-solution-row {
   display: flex;
   align-items: center;
   height: 45px;

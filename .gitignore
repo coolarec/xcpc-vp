@@ -13,3 +13,9 @@ playwright-report/
 npm-debug.log
 tsconfig.tsbuildinfo
 temp/
+.playwright-cli/console-2026-10-24T03-53-21-916Z.log
+.playwright-cli/page-2026-10-24T03-53-22-140Z.yml
+.playwright-cli/page-2026-10-24T03-53-46-233Z.yml
+.playwright-cli/page-2026-10-24T03-53-50-877Z.yml
+.playwright-cli/page-2026-10-24T03-53-55-836Z.yml
+.playwright-cli/page-2026-10-24T04-00-45-648Z.yml
