@@ -42,7 +42,7 @@ function milliseconds(time: srk.TimeDuration, path: string): number {
   }
 }
 
-/** Replay supplied submissions with official SRK scoring, without synthesizing history. */
+/** Use the official SRK extractor for detailed submissions and summary-only results. */
 export function prepareReplay(data: srk.Ranklist): PreparedReplay {
   if (!canRegenerateRanklist(data) || !/^0\.3\.\d+$/.test(data.version)) {
     throw new Error('VP 仅支持 SRK 0.3.x 的 ICPC 比赛，不支持积分赛。');
@@ -70,12 +70,11 @@ export function prepareReplay(data: srk.Ranklist): PreparedReplay {
   }
   const template = clone(data);
   template.rows.sort(byUserId);
-  // Clear summaries before extraction: the official extractor otherwise creates
-  // synthetic RJ submissions for accepted statuses without detailed solutions.
+  // The official extractor falls back to result/time/tries when solutions are absent.
   const timelineRows: srk.RanklistRow[] = template.rows.map((row) => ({
     user: row.user,
     score: { value: 0 },
-    statuses: row.statuses.map((status) => ({ result: null, solutions: status.solutions || [] })),
+    statuses: row.statuses,
   }));
   const solutions = getSortedCalculatedRawSolutions(timelineRows);
   const baseline = regenerateRanklistBySolutions({ ...template, rows: timelineRows }, []);

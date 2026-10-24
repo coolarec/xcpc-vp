@@ -56,11 +56,9 @@ describe('replay supplied history', () => {
   it.each<srk.RankProblemStatus>([
     { result: 'RJ', tries: 0, solutions: [] },
     { result: 'RJ', tries: 3 },
-    { result: 'AC', tries: 2, time: [10, 'min'], solutions: [] },
-    { result: 'FB', tries: 1, time: [10, 'min'] },
     { result: '?', tries: 1 },
     { result: null, tries: 2, solutions: [] },
-  ])('loads summaries without submission history: %j', status => {
+  ])('loads summaries without a known accepted time: %j', status => {
     const data = ranklist(status);
     data.rows[0].user.id = '东北大学_东北大鱼棒';
     const original = JSON.stringify(data);
@@ -74,16 +72,55 @@ describe('replay supplied history', () => {
     expect(JSON.stringify(data)).toBe(original);
   });
 
-  it('replays available submissions when another problem has no history', () => {
+  it.each(['AC', 'FB'] as const)('replays a summary-only %s at its recorded time with its penalty tries', result => {
+    const data = ranklist({ result, tries: 3, time: [10, 'min'], solutions: [] });
+    const original = JSON.stringify(data);
+    const replay = prepareReplay(data);
+    expect(replay.solutions).toEqual([
+      ['Team257', 0, 'RJ', [10, 'min']],
+      ['Team257', 0, 'RJ', [10, 'min']],
+      ['Team257', 0, result, [10, 'min']],
+    ]);
+    expect(replay.snapshotAt(599_999).rows[0].score.value).toBe(0);
+    expect(replay.snapshotAt(600_000).rows[0]).toMatchObject({
+      score: { value: 1, time: [3_000_000, 'ms'] },
+      statuses: [{ result, tries: 3, time: [10, 'min'] }],
+    });
+    expect(JSON.stringify(data)).toBe(original);
+  });
+
+  it('combines summary-only results and detailed submissions without dropping either', () => {
     const data = ranklist({ result: 'AC', tries: 2, time: [10, 'min'] });
     data.problems.push({ alias: 'D' });
     data.rows[0].statuses.push({ result: 'AC', tries: 1, solutions: [{ result: 'AC', time: [20, 'min'] }] });
     const replay = prepareReplay(data);
-    expect(replay.solutions).toHaveLength(1);
-    expect(replay.snapshotAt(600_000).rows[0].score.value).toBe(0);
+    expect(replay.solutions).toHaveLength(3);
+    expect(replay.snapshotAt(600_000).rows[0].score.value).toBe(1);
     expect(replay.snapshotAt(1_200_000).rows[0]).toMatchObject({
-      score: { value: 1, time: [1_200_000, 'ms'] },
-      statuses: [{ result: null, solutions: [] }, { tries: 1 }],
+      score: { value: 2, time: [3_000_000, 'ms'] },
+      statuses: [{ result: 'AC', tries: 2 }, { result: 'AC', tries: 1 }],
+    });
+  });
+
+  it('keeps summary-only results when joining with manual submissions', () => {
+    const replay = prepareReplay(ranklist({ result: 'AC', tries: 2, time: [10, 'min'] }));
+    const snapshot = replay.snapshotAt(1_200_000, [{ problemIndex: 0, timeMs: 900_000, result: 'AC' }], 'My team');
+    expect(snapshot.rows.find(row => row.user.id === 'Team257')).toMatchObject({
+      score: { value: 1, time: [1_800_000, 'ms'] },
+      statuses: [{ result: 'AC', tries: 2 }],
+    });
+    expect(snapshot.rows.find(row => row.user.id === '__vp_self__')?.score.value).toBe(1);
+  });
+
+  it('freezes summary-only results until the contest ends', () => {
+    const data = ranklist({ result: 'AC', tries: 2, time: [250, 'min'] });
+    data.contest.frozenDuration = [1, 'h'];
+    const replay = prepareReplay(data);
+    expect(replay.snapshotAt(250 * 60_000).rows[0]).toMatchObject({
+      score: { value: 0 }, statuses: [{ result: '?', tries: 2 }],
+    });
+    expect(replay.snapshotAt(replay.durationMs).rows[0]).toMatchObject({
+      score: { value: 1, time: [16_200_000, 'ms'] }, statuses: [{ result: 'AC', tries: 2 }],
     });
   });
 
