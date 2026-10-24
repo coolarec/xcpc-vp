@@ -45,7 +45,7 @@ function milliseconds(time: srk.TimeDuration, path: string): number {
   }
 }
 
-/** Official SRK scoring only. Incomplete histories are rejected, never synthesized. */
+/** Replay supplied submissions with official SRK scoring, without synthesizing history. */
 export function prepareReplay(data: srk.Ranklist): PreparedReplay {
   ranklistChecker.check(data);
   if (!canRegenerateRanklist(data) || !/^0\.3\.\d+$/.test(data.version)) {
@@ -103,18 +103,6 @@ export function prepareReplay(data: srk.Ranklist): PreparedReplay {
     statuses: row.statuses.map((status) => ({ result: null, solutions: status.solutions || [] })),
   }));
   const solutions = getSortedCalculatedRawSolutions(timelineRows);
-  const final = regenerateRanklistBySolutions({ ...template, rows: timelineRows }, solutions);
-  const byId = new Map(final.rows.map((row) => [row.user.id, row]));
-  const normalize = (result: srk.SolutionResultLite) => result === 'FB' ? 'AC' : result;
-  for (const row of template.rows) {
-    row.statuses.forEach((status, index) => {
-      const calculated = byId.get(row.user.id)!.statuses[index];
-      if (normalize(status.result) !== normalize(calculated.result) ||
-          (status.tries !== undefined && status.tries !== (calculated.tries || 0))) {
-        throw new Error(`${row.user.id}.statuses[${index}]: 提交历史不完整或汇总与官方重算不符（partial），无法准确重放。`);
-      }
-    });
-  }
   const baseline = regenerateRanklistBySolutions({ ...template, rows: timelineRows }, []);
   baseline._now = new Date(startMs).toISOString();
   return {
