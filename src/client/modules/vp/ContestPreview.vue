@@ -36,7 +36,7 @@ const durationText = computed(() => {
 </template>
 
 <style scoped>
-.contest-preview{min-width:0;padding:20px 18px;background:hsl(var(--background) / .25)}
+.contest-preview{min-width:0;padding:20px 18px}
 .preview-state{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;min-height:180px;color:hsl(var(--muted-foreground));font-size:12px;line-height:1.7;text-align:center;overflow-wrap:anywhere}.preview-state p{margin:0}
 .preview-heading>svg{color:hsl(var(--primary));margin-bottom:9px}.preview-heading h2{margin:0 0 8px;font-size:15px;line-height:1.7;font-weight:500;overflow-wrap:anywhere}.preview-heading p{margin:0 0 6px;font-size:11px;color:hsl(var(--muted-foreground))}.preview-heading>span{font-size:10px;color:hsl(var(--muted-foreground))}
 .preview-metrics{display:grid;grid-template-columns:1fr 1fr;gap:17px 15px;margin:22px 0 14px}.preview-metrics dt{font-size:11px;color:hsl(var(--muted-foreground))}.preview-metrics dd{margin:3px 0 0;font-size:22px;font-weight:500;line-height:1.5}.preview-metrics dd.unknown{font-size:15px;line-height:2.2}

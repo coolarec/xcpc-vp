@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, shallowRef, watch } from 'vue';
+import { useResizeObserver } from '@vueuse/core';
 import { useRoute, useRouter } from 'vue-router';
 import { ChevronRight, FileText, Folder, FolderOpen, Search, Settings, Shuffle, X } from 'lucide-vue-next';
 import { Button } from '@/components/ui/button';
@@ -108,13 +109,14 @@ watch(search, () => {
   const first = getFinderScope(tree.value, [])[0];
   selectedPath.value = candidate || (first ? findFinderContestPath(tree.value, first.key) || [] : []);
 });
-watch(selectedPath, async () => {
-  await nextTick();
+function revealLastColumn() {
   const element = columnsElement.value;
   if (!element) return;
   const finalColumn = element.querySelector<HTMLElement>(`[data-column="${columns.value.length - 1}"]`);
   if (finalColumn) element.scrollTo({ left: Math.max(0, finalColumn.offsetLeft + finalColumn.offsetWidth - element.clientWidth), behavior: 'auto' });
-});
+}
+watch([selectedPath, columnsElement], revealLastColumn, { flush: 'post' });
+useResizeObserver(columnsElement, revealLastColumn);
 
 async function load() {
   const request = ++generation;
@@ -210,7 +212,7 @@ onBeforeUnmount(() => { generation++; previewGeneration++; });
 </template>
 
 <style scoped>
-.finder-page { max-width: 1640px; margin: 0 auto; min-width: 0; }
+.finder-page { max-width: 1320px; margin: 0 auto; min-width: 0; }
 .finder-page-heading { display: flex; align-items: center; gap: 20px; min-height: 40px; margin-bottom: 18px; }
 .finder-title { display: flex; align-items: baseline; gap: 12px; flex-shrink: 0; }
 .finder-title h1 { margin: 0; font-size: 24px; font-weight: 500; }
@@ -221,7 +223,7 @@ onBeforeUnmount(() => { generation++; previewGeneration++; });
 .finder-search-input:focus-visible { box-shadow: none; outline: none; }
 .finder-search > svg { flex-shrink: 0; }
 .finder-search > button { display: flex; flex-shrink: 0; background: none; border: 0; padding: 3px; color: inherit; cursor: pointer; }
-.finder-window { display: flex; flex-direction: column; height: calc(100dvh - 122px); min-height: 530px; border: 1px solid hsl(var(--border)); border-radius: 6px; background: hsl(var(--card)); overflow: hidden; }
+.finder-window { display: flex; flex-direction: column; height: min(720px, calc(100dvh - 160px)); min-height: 530px; border: 1px solid hsl(var(--border)); border-radius: 6px; background: hsl(var(--card)); overflow: hidden; }
 .finder-pathbar { display: flex; align-items: center; gap: 7px; min-height: 42px; padding: 5px 12px; border-bottom: 1px solid hsl(var(--border)); background: hsl(var(--muted) / .35); }
 .finder-pathbar nav { display: flex; align-items: center; gap: 7px; flex: 1; min-width: 0; overflow: hidden; font-size: 12px; }
 .finder-pathbar nav > button { border: 0; padding: 2px 0; background: none; color: inherit; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; max-width: 240px; }
