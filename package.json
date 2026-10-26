@@ -11,6 +11,7 @@
     "dev:vp": "vite --host 127.0.0.1 --port 5174",
     "build:vp": "vite build",
     "preview:vp": "vite preview --host 127.0.0.1 --port 5174",
+    "test": "vitest run --config vite.config.js",
     "build:srk-checker": "node scripts/build-srk-checker.cjs"
   },
   "keywords": [
@@ -85,6 +86,7 @@
     "tailwindcss": "3.4.18",
     "ts-interface-builder": "^0.3.3",
     "typescript": "~5.9.3",
+    "vitest": "0.34.6",
     "vue-eslint-parser": "^9.3.2",
     "vue-tsc": "^3.3.3"
   },
