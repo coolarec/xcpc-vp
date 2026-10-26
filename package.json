@@ -36,6 +36,7 @@
     "@algoux/standard-ranklist-renderer-component-vue": "^0.7.3",
     "@algoux/standard-ranklist-utils": "^0.3.5",
     "@antv/g2": "5.0.13",
+    "@edgeone/pages-blob": "0.0.18",
     "@vue/runtime-core": "^3.5.35",
     "@vue/server-renderer": "^3.5.35",
     "@vueuse/core": "^14.3.0",

@@ -17,6 +17,7 @@ import { isManualResult, MANUAL_RESULTS, prepareReplay, type ManualResult, type 
 import { applyVPOptions, DEFAULT_VP_OPTIONS, readVPOptions, type VPOptions } from './options';
 import { shouldEnableCCPC26 } from '@/utils/ccpc26.util';
 import { parseSubmissionTime } from './submission-time';
+import { useVPPresence } from './presence';
 
 const route = useRoute();
 const router = useRouter();
@@ -67,6 +68,7 @@ const revealedProblems = computed(() => ccpc26Active.value && ranklist.value ? n
 // Preserve the legacy default-penalty key so existing default sessions still restore.
 const scheduledAtMs = computed(() => options.value.scheduledAt ? Date.parse(options.value.scheduledAt) : NaN);
 const waitingForSchedule = computed(() => Number.isFinite(scheduledAtMs.value) && now.value < scheduledAtMs.value);
+useVPPresence(computed(() => !!ranklist.value && running.value && !ended.value && !waitingForSchedule.value), key);
 const scheduledLabel = computed(() => Number.isFinite(scheduledAtMs.value) ? new Date(scheduledAtMs.value).toLocaleString('zh-CN', { dateStyle: 'medium', timeStyle: 'short' }) : '');
 const storageKey = computed(() => `RanklandVP2:${key.value}:${run.value}:${options.value.rule}:${options.value.revealCount}:${options.value.revealRatio}:${options.value.scheduledAt || 'null'}:${options.value.startMinutes}`);
 let anchorTime = Date.now();
@@ -237,7 +239,7 @@ watch(key, async value => {
     ownOrganization.value = options.value.organization;
     running.value = options.value.autoplay || !!options.value.scheduledAt;
     try { restore(); } catch (e) { running.value = false; savingError.value = e instanceof Error ? e.message : '无法恢复本地进度。'; }
-    if (waitingForSchedule) running.value = false;
+    if (waitingForSchedule.value) running.value = false;
     cursor = 0; feedKey.value++; problem.value = 0; customSubmissionTime.value = false; reanchor(); redraw(false);
     save();
   } catch (e) { if (request === generation) error.value = e instanceof Error ? e.message : '比赛加载失败，请返回合集重选。'; }
