@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type * as srk from '@algoux/standard-ranklist';
-import { prepareReplay } from './replay';
+import { MANUAL_RESULTS, OWN_ID, prepareReplay, type ManualSubmission } from './replay';
 
 function ranklist(status: srk.RankProblemStatus, noPenaltyResults?: srk.SolutionResultFull[]): srk.Ranklist {
   return {
@@ -13,6 +13,29 @@ function ranklist(status: srk.RankProblemStatus, noPenaltyResults?: srk.Solution
 }
 
 describe('replay supplied history', () => {
+  it.each(MANUAL_RESULTS)('keeps manual %s submissions and applies official penalties', result => {
+    const replay = prepareReplay(ranklist({ result: null }));
+    const manual: ManualSubmission[] = [
+      { problemIndex: 0, timeMs: 60_000, result },
+      ...(result === 'AC' ? [] : [{ problemIndex: 0, timeMs: 120_000, result: 'AC' as const }]),
+    ];
+    const own = replay.snapshotAt(120_000, manual, 'My team').rows.find(row => row.user.id === OWN_ID)!;
+    const penalized = !['AC', 'CE', 'NOUT', 'UKE'].includes(result);
+    expect(own.statuses[0].solutions?.map(solution => solution.result)).toEqual(manual.map(submission => submission.result));
+    expect(own.score).toEqual({ value: 1, time: [result === 'AC' ? 60_000 : 120_000 + (penalized ? 1_200_000 : 0), 'ms'] });
+    expect(own.statuses[0].tries).toBe(penalized ? 2 : 1);
+  });
+
+  it('uses the contest penalty configuration for manual CE submissions', () => {
+    const replay = prepareReplay(ranklist({ result: null }, ['AC', 'FB']));
+    const own = replay.snapshotAt(120_000, [
+      { problemIndex: 0, timeMs: 60_000, result: 'CE' },
+      { problemIndex: 0, timeMs: 120_000, result: 'AC' },
+    ], 'My team').rows.find(row => row.user.id === OWN_ID)!;
+    expect(own.statuses[0].tries).toBe(2);
+    expect(own.score.time).toEqual([1_320_000, 'ms']);
+  });
+
   it('replays complete CE-only histories marked RJ with zero effective tries', () => {
     const solutions: srk.RankProblemStatus['solutions'] = [
       { result: 'CE', time: [16_766_923, 'ms'] },
@@ -110,6 +133,17 @@ describe('replay supplied history', () => {
       statuses: [{ result: 'AC', tries: 2 }],
     });
     expect(snapshot.rows.find(row => row.user.id === '__vp_self__')?.score.value).toBe(1);
+  });
+
+  it('keeps the own team organization when scoring and leaves it optional', () => {
+    const replay = prepareReplay(ranklist({ result: null }));
+    const manual = [{ problemIndex: 0, timeMs: 60_000, result: 'AC' as const }];
+    const snapshot = replay.snapshotAt(60_000, manual, 'My team', '  东北大学  ');
+    expect(snapshot.rows.find(row => row.user.id === '__vp_self__')).toMatchObject({
+      user: { name: 'My team', organization: '东北大学' },
+      score: { value: 1 },
+    });
+    expect(replay.snapshotAt(60_000, manual, 'My team').rows.find(row => row.user.id === '__vp_self__')?.user.organization).toBeUndefined();
   });
 
   it('freezes summary-only results until the contest ends', () => {

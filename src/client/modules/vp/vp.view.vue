@@ -13,7 +13,7 @@ import ScrollSolution from './ScrollSolution.vue';
 import type { ScrollSolutionDataItem } from './ScrollSolution.vue';
 import { useRanklandApi } from '@/services/ranklist-api';
 import { formatTitle } from '@/app/title-format';
-import { prepareReplay, type ManualSubmission } from './replay';
+import { isManualResult, MANUAL_RESULTS, prepareReplay, type ManualResult, type ManualSubmission } from './replay';
 import { applyVPOptions, DEFAULT_VP_OPTIONS, readVPOptions, type VPOptions } from './options';
 import { shouldEnableCCPC26 } from '@/utils/ccpc26.util';
 import { parseSubmissionTime } from './submission-time';
@@ -33,9 +33,11 @@ const speed = ref(1);
 const now = ref(Date.now());
 const ownName = ref('');
 const ownNameInput = ref('');
+const ownOrganization = ref('');
+const ownOrganizationInput = ref('');
 const manual = ref<ManualSubmission[]>([]);
 const problem = ref(0);
-const result = ref<'AC' | 'WA'>('AC');
+const result = ref<ManualResult>('AC');
 const submissionHour = ref('0');
 const submissionMinute = ref('0');
 const customSubmissionTime = ref(false);
@@ -76,7 +78,7 @@ function save() {
   try {
     localStorage.setItem(storageKey.value, JSON.stringify({
       version: 2, elapsed: elapsed.value, savedAt: Date.now(), running: running.value,
-      speed: speed.value, ownName: ownName.value, manual: manual.value,
+      speed: speed.value, ownName: ownName.value, ownOrganization: ownOrganization.value, manual: manual.value,
     }));
     lastSaved = Date.now();
   } catch { savingError.value = '浏览器无法保存进度，关闭页面前请注意记录比赛时间。'; }
@@ -93,10 +95,11 @@ function restore() {
   for (const submission of state.manual) {
     if (!submission ||
         !Number.isInteger(submission.problemIndex) || submission.problemIndex < 0 || submission.problemIndex >= replay.value.source.problems.length ||
-        !['AC', 'WA'].includes(submission.result) || typeof submission.timeMs !== 'number' || !Number.isFinite(submission.timeMs) ||
+        !isManualResult(submission.result) || typeof submission.timeMs !== 'number' || !Number.isFinite(submission.timeMs) ||
         submission.timeMs < 0 || submission.timeMs > duration.value) throw new Error('保存的提交记录格式无效。');
   }
   ownName.value = state.ownName;
+  ownOrganization.value = typeof state.ownOrganization === 'string' ? state.ownOrganization.trim().slice(0, 80) : options.value.organization;
   manual.value = state.manual;
   speed.value = state.speed;
   elapsed.value = Math.min(duration.value, state.elapsed + (state.running ? Math.max(0, Date.now() - state.savedAt) * state.speed : 0));
@@ -112,7 +115,7 @@ function redraw(pushEvents = true) {
   if (!replay.value) return;
   const previous = cursor;
   while (cursor < replay.value.solutions.length && solutionTime(cursor) <= elapsed.value) cursor++;
-  ranklist.value = replay.value.snapshotAt(elapsed.value, manual.value, ownName.value);
+  ranklist.value = replay.value.snapshotAt(elapsed.value, manual.value, ownName.value, ownOrganization.value);
   if (!pushEvents || !enabledScrollSolution.value || cursor <= previous) return;
   const rowsById = new Map(ranklist.value.rows.map(row => [row.user.id, row]));
   const messages: ScrollSolutionDataItem[] = replay.value.solutions.slice(Math.max(previous, cursor - 40), cursor).map(solution => {
@@ -147,13 +150,21 @@ function setSpeed(event: Event) {
 }
 function reset() {
   running.value = false; elapsed.value = 0; manual.value = []; ownName.value = ''; ownNameInput.value = ''; cursor = 0;
+  ownOrganization.value = ''; ownOrganizationInput.value = '';
   customSubmissionTime.value = false;
   resetOpen.value = false; feedKey.value++; reanchor(); redraw(false); save();
 }
+function openTeamForm() {
+  ownNameInput.value = ownName.value;
+  ownOrganizationInput.value = ownOrganization.value;
+  joinOpen.value = true;
+}
 function join() {
   const name = ownNameInput.value.trim();
-  if (!name || name.length > 80) return;
-  ownName.value = name; joinOpen.value = false; redraw(false); save();
+  const organization = ownOrganizationInput.value.trim();
+  if (!name || name.length > 80 || organization.length > 80) return;
+  tick();
+  ownName.value = name; ownOrganization.value = organization; joinOpen.value = false; redraw(false); save();
 }
 function record() {
   tick();
@@ -170,7 +181,7 @@ function record() {
   scrollSolution.value?.pushSolutions([{
     problem: { alias: revealedProblems.value && !revealedProblems.value.has(problem.value) ? '?' : ranklist.value.problems[problem.value].alias || String(problem.value + 1) },
     score: { value: updatedOwn?.score.value || 0 }, result: result.value,
-    user: { name: ownName.value, organization: 'Virtual Participant' },
+    user: { name: ownName.value, organization: ownOrganization.value || undefined },
   }]);
 }
 function editSubmissionTime(field: 'hour' | 'minute', event: Event) {
@@ -195,7 +206,7 @@ onBeforeRouteUpdate((to, from) => {
 });
 
 function backToSetup() {
-  return router.push({ path: '/', query: { ...route.query, selected: key.value, contest: undefined, run: undefined, play: undefined, speed: String(speed.value), team: ownName.value || undefined } });
+  return router.push({ path: '/', query: { ...route.query, selected: key.value, contest: undefined, run: undefined, play: undefined, speed: String(speed.value), team: ownName.value || undefined, organization: ownOrganization.value || undefined } });
 }
 
 watch(key, async value => {
@@ -212,6 +223,7 @@ watch(key, async value => {
     replay.value = prepareReplay(applyVPOptions(data.srk, options.value));
     if (options.value.startMinutes * 60000 >= duration.value) throw new Error('起始时间必须小于比赛时长。');
     activeKey = value; elapsed.value = options.value.startMinutes * 60000; speed.value = options.value.speed; manual.value = []; ownName.value = options.value.team;
+    ownOrganization.value = options.value.organization;
     running.value = options.value.autoplay;
     try { restore(); } catch (e) { running.value = false; savingError.value = e instanceof Error ? e.message : '无法恢复本地进度。'; }
     cursor = 0; feedKey.value++; problem.value = 0; customSubmissionTime.value = false; reanchor(); redraw(false);
@@ -248,14 +260,14 @@ onBeforeUnmount(() => {
         </select>
       </label>
       <Button size="sm" variant="outline" @click="resetOpen = true">重新开始</Button>
-      <Button v-if="!ownName" size="sm" variant="outline" @click="joinOpen = true">加入我的队伍</Button>
+      <Button size="sm" variant="outline" @click="openTeamForm">{{ ownName ? '修改队伍信息' : '加入我的队伍' }}</Button>
     </div>
     <div v-if="ownName" class="mx-4 mb-4 flex flex-wrap items-center justify-center gap-3">
-        <span class="text-sm">{{ ownName }}</span>
+        <span class="text-sm">{{ ownName }}<span v-if="ownOrganization" class="ml-2 text-muted-foreground">{{ ownOrganization }}</span></span>
         <select v-model="problem" class="srk-ranklist-org-select !w-auto" aria-label="题目">
           <option v-for="(item, index) in ranklist.problems" :key="index" :value="index">{{ item.alias || index + 1 }}</option>
         </select>
-        <select v-model="result" class="srk-ranklist-org-select !w-auto" aria-label="结果"><option value="AC">AC</option><option value="WA">WA</option></select>
+        <select v-model="result" class="srk-ranklist-org-select !w-auto" aria-label="结果"><option v-for="verdict in MANUAL_RESULTS" :key="verdict" :value="verdict">{{ verdict }}</option></select>
         <span class="inline-flex items-center gap-1.5 text-sm">
           <span>提交时间</span>
           <input class="h-8 w-16 rounded-md border border-input bg-background px-2 text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" aria-label="提交时间（时）" :aria-invalid="!!submissionTimeError" :aria-describedby="submissionTimeError ? 'submission-time-error' : undefined" type="number" min="0" :max="Math.floor(duration / 3_600_000)" step="1" :value="displayedSubmissionHour" @input="editSubmissionTime('hour', $event)" />
@@ -282,8 +294,13 @@ onBeforeUnmount(() => {
       </template>
     </StyledRanklist>
     <ScrollSolution v-if="enabledScrollSolution" :key="feedKey" ref="scrollSolution" :container-max-height="clientHeight" />
-    <Modal :open="joinOpen" title="加入我的队伍" :width="420" root-class-name="srk-general-modal-root" @close="joinOpen = false" @update:open="joinOpen = $event">
-      <form @submit.prevent="join"><Input v-model="ownNameInput" placeholder="队伍名称" aria-label="队伍名称" maxlength="80" required /><p class="my-4 text-sm text-muted-foreground">在原 OJ 做题，判题后在此手动记录 AC / WA，与历史队伍同榜。</p><Button size="sm" type="submit" :disabled="!ownNameInput.trim()">加入</Button></form>
+    <Modal :open="joinOpen" :title="ownName ? '修改队伍信息' : '加入我的队伍'" :width="420" root-class-name="srk-general-modal-root" @close="joinOpen = false" @update:open="joinOpen = $event">
+      <form @submit.prevent="join">
+        <label class="mb-4 flex flex-col gap-2 text-sm"><span>队伍名称</span><Input v-model="ownNameInput" placeholder="队伍名称" aria-label="队伍名称" maxlength="80" required /></label>
+        <label class="flex flex-col gap-2 text-sm"><span>学校 / 单位 <small class="text-muted-foreground">可选</small></span><Input v-model="ownOrganizationInput" placeholder="填写学校或单位" aria-label="学校 / 单位" maxlength="80" /></label>
+        <p class="my-4 text-sm text-muted-foreground">在原 OJ 做题，判题后在此手动记录提交结果，与历史队伍同榜。</p>
+        <Button size="sm" type="submit" :disabled="!ownNameInput.trim()">{{ ownName ? '保存' : '加入' }}</Button>
+      </form>
     </Modal>
     <Modal :open="resetOpen" title="重新开始虚拟参赛" :width="420" root-class-name="srk-general-modal-root" @close="resetOpen = false" @update:open="resetOpen = $event">
       <p class="mb-4">计时归零，并清空这场比赛中手动记录的提交。</p>

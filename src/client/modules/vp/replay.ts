@@ -10,11 +10,17 @@ import type { CalculatedSolutionTetrad } from '@algoux/standard-ranklist-utils';
 
 export type { CalculatedSolutionTetrad } from '@algoux/standard-ranklist-utils';
 export const OWN_ID = '__vp_self__';
+export const MANUAL_RESULTS = ['AC', 'WA', 'TLE', 'MLE', 'RTE', 'CE', 'PE', 'OLE', 'IDLE', 'NOUT', 'RJ', 'UKE'] as const;
+export type ManualResult = typeof MANUAL_RESULTS[number];
+
+export function isManualResult(value: unknown): value is ManualResult {
+  return typeof value === 'string' && (MANUAL_RESULTS as readonly string[]).includes(value);
+}
 
 export interface ManualSubmission {
   problemIndex: number;
   timeMs: number;
-  result: 'AC' | 'WA';
+  result: ManualResult;
 }
 
 export interface PreparedReplay {
@@ -23,7 +29,7 @@ export interface PreparedReplay {
   durationMs: number;
   frozenAtMs: number;
   solutions: CalculatedSolutionTetrad[];
-  snapshotAt(ms: number, manual?: ManualSubmission[], ownName?: string): srk.Ranklist;
+  snapshotAt(ms: number, manual?: ManualSubmission[], ownName?: string, ownOrganization?: string): srk.Ranklist;
 }
 
 const clone = <T>(value: T): T => JSON.parse(JSON.stringify(value));
@@ -84,12 +90,12 @@ export function prepareReplay(data: srk.Ranklist): PreparedReplay {
     durationMs,
     frozenAtMs,
     solutions: clone(solutions),
-    snapshotAt(ms, manual = [], ownName = '') {
+    snapshotAt(ms, manual = [], ownName = '', ownOrganization = '') {
       if (!Number.isFinite(ms)) throw new Error('重放时间必须是有限数。');
-      if (!Array.isArray(manual) || typeof ownName !== 'string') throw new Error('无效的手动提交或队伍名称。');
+      if (!Array.isArray(manual) || typeof ownName !== 'string' || typeof ownOrganization !== 'string') throw new Error('无效的手动提交或队伍信息。');
       const timeMs = Math.max(0, Math.min(ms, durationMs));
       const own: srk.RanklistRow = {
-        user: { id: OWN_ID, name: ownName.trim() || '我的队伍', official: true },
+        user: { id: OWN_ID, name: ownName.trim() || '我的队伍', organization: ownOrganization.trim() || undefined, official: true },
         score: { value: 0 },
         statuses: emptyStatuses(template.problems.length),
       };
@@ -97,8 +103,8 @@ export function prepareReplay(data: srk.Ranklist): PreparedReplay {
         if (!submission ||
             !Number.isInteger(submission.problemIndex) || submission.problemIndex < 0 || submission.problemIndex >= own.statuses.length ||
             !Number.isFinite(submission.timeMs) || submission.timeMs < 0 || submission.timeMs > durationMs ||
-            (submission.result !== 'AC' && submission.result !== 'WA')) {
-          throw new Error('无效的手动提交：需要有效题号、比赛内时间及 AC/WA。');
+            !isManualResult(submission.result)) {
+          throw new Error('无效的手动提交：需要有效题号、比赛内时间及判题结果。');
         }
         own.statuses[submission.problemIndex].solutions!.push({ result: submission.result, time: [submission.timeMs, 'ms'] });
       }
