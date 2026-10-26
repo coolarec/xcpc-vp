@@ -37,7 +37,7 @@ module.exports = function vpPresenceDev() {
           const request = new Request(`http://${req.headers.host}${req.url}`, {
             method: req.method,
             headers: req.headers,
-            ...(size ? { body: Buffer.concat(chunks) } : {}),
+            ...(chunks.length ? { body: Buffer.concat(chunks) } : {}),
           });
           const response = await handlePresence(request, store);
           res.writeHead(response.status, Object.fromEntries(response.headers));

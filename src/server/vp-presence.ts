@@ -29,22 +29,11 @@ function json(value: unknown, status = 200, extraHeaders = {}) {
 
 async function readHeartbeat(request: Request) {
   if (request.headers.get('content-type')?.split(';')[0] !== 'application/json') return;
-  const reader = request.body?.getReader();
-  if (!reader) return;
-  const chunks: Uint8Array[] = [];
-  let size = 0;
+  const contentLength = Number(request.headers.get('content-length') || 0);
+  if (contentLength > 1024) return;
   try {
-    for (;;) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      size += value.length;
-      if (size > 1024) { await reader.cancel(); return; }
-      chunks.push(value);
-    }
-    const bytes = new Uint8Array(size);
-    let offset = 0;
-    for (const chunk of chunks) { bytes.set(chunk, offset); offset += chunk.length; }
-    const data = JSON.parse(new TextDecoder().decode(bytes));
+    const data = await request.json() as { sessionId?: unknown; contestId?: unknown };
+    if (JSON.stringify(data).length > 1024) return;
     if (!data || typeof data.sessionId !== 'string' || !SESSION_ID.test(data.sessionId) ||
         typeof data.contestId !== 'string' || !/^[a-zA-Z0-9][a-zA-Z0-9._-]{0,127}$/.test(data.contestId)) return;
     return { sessionId: data.sessionId, contestId: data.contestId };

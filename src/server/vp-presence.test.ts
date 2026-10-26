@@ -85,4 +85,17 @@ describe('VP online presence', () => {
     expect(response.status).toBe(503);
     expect(await response.json()).not.toHaveProperty('count');
   });
+
+  it('accepts EdgeOne-style Request.json bodies without a content length header', async () => {
+    const { store } = memoryStore();
+    const request = new Request('https://vp.example/api/vp-presence', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Origin: 'https://vp.example' },
+      body: JSON.stringify({ sessionId: FIRST, contestId: 'edgeone-test' }),
+    });
+    Object.defineProperty(request, 'body', { get() { throw new Error('Body stream access is not supported'); } });
+    request.json = async () => ({ sessionId: FIRST, contestId: 'edgeone-test' });
+    expect((await handlePresence(request, store, { now: NOW })).status).toBe(200);
+    expect((await (await handlePresence(query(), store, { now: NOW })).json()).count).toBe(1);
+  });
 });

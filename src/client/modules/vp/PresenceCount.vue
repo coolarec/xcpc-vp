@@ -36,7 +36,7 @@ onBeforeUnmount(() => { clearInterval(timer); pending?.abort(); });
 <template>
   <p class="mt-4 flex items-center justify-center gap-2 text-xs text-muted-foreground" role="status" aria-live="polite" data-id="vp-presence-count">
     <span class="h-2 w-2 shrink-0 rounded-full" :class="count !== undefined ? 'bg-green-500' : 'bg-muted-foreground/40'" aria-hidden="true" />
-    <span v-if="count !== undefined">现在有 {{ count }} 人正在 VP 中</span>
+    <span v-if="count !== undefined">有 {{ count }} 人正在 VP 中</span>
     <span v-else>{{ loading ? '正在获取 VP 人数…' : '在线人数暂不可用' }}</span>
   </p>
 </template>
