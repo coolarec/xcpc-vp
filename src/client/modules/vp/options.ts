@@ -4,6 +4,7 @@ export interface VPOptions {
   rule: 'auto' | 'ICPC' | 'CCPC26';
   speed: number;
   startMinutes: number;
+  scheduledAt: string;
   team: string;
   organization: string;
   feed: boolean;
@@ -13,7 +14,7 @@ export interface VPOptions {
 }
 
 export const DEFAULT_VP_OPTIONS: VPOptions = {
-  rule: 'auto', speed: 1, startMinutes: 0, team: '', organization: '', feed: true,
+  rule: 'auto', speed: 1, startMinutes: 0, scheduledAt: '', team: '', organization: '', feed: true,
   revealCount: 50, revealRatio: 20, autoplay: false,
 };
 
@@ -41,6 +42,8 @@ export function readVPOptions(query: Record<string, unknown>): VPOptions {
   if (team.length > 80) throw new Error('队伍名称不能超过 80 字。');
   const organization = (value(query, 'organization') || '').trim();
   if (organization.length > 80) throw new Error('学校 / 单位不能超过 80 字。');
+  const scheduledAt = (value(query, 'at') || '').trim();
+  if (scheduledAt && !Number.isFinite(Date.parse(scheduledAt))) throw new Error('预约时间格式不正确。');
   const feed = value(query, 'feed');
   if (feed !== undefined && !['0', '1'].includes(feed)) throw new Error('feed 参数必须为 0 或 1。');
   const play = value(query, 'play');
@@ -49,7 +52,7 @@ export function readVPOptions(query: Record<string, unknown>): VPOptions {
   const revealRatio = numeric(query, 'ratio', 20, 100);
   if (rule === 'CCPC26' && revealCount === 0 && revealRatio === 0) throw new Error('CCPC 2026 至少需要一个非零揭题阈值。');
   return {
-    rule: rule as VPOptions['rule'], speed, team, organization, feed: feed !== '0', autoplay: play === '1',
+    rule: rule as VPOptions['rule'], speed, team, organization, scheduledAt, feed: feed !== '0', autoplay: play === '1',
     startMinutes: numeric(query, 'from', 0, 10080), revealCount, revealRatio,
   };
 }
@@ -60,6 +63,7 @@ export function buildVPQuery(contest: string, options: VPOptions): Record<string
     contest, rule: options.rule, speed: String(options.speed),
     from: String(options.startMinutes), feed: options.feed ? '1' : '0', play: options.autoplay ? '1' : '0',
   };
+  if (options.scheduledAt.trim()) query.at = options.scheduledAt.trim();
   if (options.team.trim()) query.team = options.team.trim();
   if (options.organization.trim()) query.organization = options.organization.trim();
   if (options.rule === 'CCPC26') {

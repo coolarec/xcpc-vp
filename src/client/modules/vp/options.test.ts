@@ -13,3 +13,10 @@ it('keeps existing team links working without an organization', () => {
   expect(options.organization).toBe('');
   expect(buildVPQuery('test', options)).not.toHaveProperty('organization');
 });
+
+it('round-trips a real-time scheduled start through the contest link', () => {
+  const at = '2026-10-27T03:04:05.000Z';
+  const options = readVPOptions({ at });
+  expect(options.scheduledAt).toBe(at);
+  expect(buildVPQuery('test', options).at).toBe(at);
+});

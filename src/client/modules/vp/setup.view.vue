@@ -5,6 +5,7 @@ import { useRoute, useRouter } from 'vue-router';
 import { ChevronRight, FileText, Folder, FolderOpen, Search, Settings, Shuffle, X } from 'lucide-vue-next';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Modal } from '@algoux/standard-ranklist-renderer-component-vue';
 import RightMenu from '@/components/layout/RightMenu.vue';
 import Loading from '@/components/common/Loading.vue';
 import { useRanklandApi, type IApiCollectionItem, type IApiRanklist } from '@/services/ranklist-api';
@@ -59,6 +60,32 @@ const last = computed(() => selection.value[selection.value.length - 1]);
 const current = computed(() => last.value?.contest);
 const scope = computed(() => getFinderScope(tree.value, selectedPath.value));
 const matches = computed(() => tree.value.reduce((sum, node) => sum + node.count, 0));
+const scheduleOpen = ref(false);
+const scheduleHour = ref('');
+const scheduleMinute = ref('');
+const scheduleError = ref('');
+
+function openSchedule() {
+  scheduleError.value = '';
+  const date = options.scheduledAt ? new Date(options.scheduledAt) : new Date(Date.now() + 10 * 60_000);
+  scheduleHour.value = String(date.getHours()).padStart(2, '0');
+  scheduleMinute.value = String(date.getMinutes()).padStart(2, '0');
+  scheduleOpen.value = true;
+}
+
+function startScheduled() {
+  const now = new Date();
+  const hour = Number(scheduleHour.value);
+  const minute = Number(scheduleMinute.value);
+  const timestamp = new Date(now.getFullYear(), now.getMonth(), now.getDate(), hour, minute, 0, 0);
+  if (!Number.isInteger(hour) || hour < 0 || hour > 23 || !Number.isInteger(minute) || minute < 0 || minute > 59) {
+    scheduleError.value = '请选择未来的预约时间。';
+    return;
+  }
+  if (timestamp.getTime() <= now.getTime()) timestamp.setDate(timestamp.getDate() + 1);
+  scheduleOpen.value = false;
+  void start(false, timestamp.toISOString());
+}
 
 async function loadSelectedInfo() {
   const request = ++previewGeneration;
@@ -131,14 +158,14 @@ async function load() {
   } catch (e) { if (request === generation) error.value = e instanceof Error ? e.message : '合集加载失败，请重试。'; }
   finally { if (request === generation) loading.value = false; }
 }
-async function start(random = false) {
+async function start(random = false, scheduledAt = '') {
   if (busy.value) return;
   error.value = '';
   const request = ++generation;
   try {
     const candidates = random ? [...scope.value] : current.value ? [current.value] : [];
     if (!candidates.length) throw new Error('请先在分栏中选择一场比赛。');
-    const settings = readVPOptions(buildVPQuery(candidates[0].key, options));
+    const settings = readVPOptions(buildVPQuery(candidates[0].key, { ...options, scheduledAt, autoplay: true }));
     if (random) for (let i = candidates.length - 1; i > 0; i--) {
       const j = Math.floor((crypto.getRandomValues(new Uint32Array(1))[0] / 2 ** 32) * (i + 1));
       [candidates[i], candidates[j]] = [candidates[j], candidates[i]];
@@ -204,11 +231,19 @@ onBeforeUnmount(() => { generation++; previewGeneration++; });
             <label class="finder-field"><span>我的队伍名称 <small>可选</small></span><Input v-model="options.team" class="h-8" aria-label="我的队伍名称" maxlength="80" placeholder="加入榜单，手动同步判题结果" :disabled="busy" /></label>
             <label class="finder-field"><span>学校 / 单位 <small>可选</small></span><Input v-model="options.organization" class="h-8" aria-label="学校 / 单位" maxlength="80" placeholder="填写学校或单位" :disabled="busy" /></label>
           </div>
-          <div class="finder-config-actions"><p v-if="error" class="finder-error" role="alert">{{ error }}</p><Button v-if="!loading && !contests.length" variant="outline" size="sm" class="w-full" @click="load">重新加载合集</Button><Button size="sm" class="w-full" :disabled="loading || busy || !current" @click="start(false)">{{ busy ? '正在检查比赛数据…' : '开始虚拟参赛' }}<ChevronRight v-if="!busy" :size="14" /></Button><Button size="sm" variant="outline" class="w-full" :disabled="loading || busy || !scope.length" @click="start(true)"><Shuffle :size="14" />从当前范围随机一场</Button></div>
+          <div class="finder-config-actions"><p v-if="error" class="finder-error" role="alert">{{ error }}</p><Button v-if="!loading && !contests.length" variant="outline" size="sm" class="w-full" @click="load">重新加载合集</Button><div class="flex gap-2"><Button size="sm" class="min-w-0 flex-1" :disabled="loading || busy || !current" @click="start(false)">{{ busy ? '正在检查比赛数据…' : '立刻开始' }}<ChevronRight v-if="!busy" :size="14" /></Button><Button size="sm" variant="outline" class="min-w-0 flex-1" :disabled="loading || busy || !current" @click="openSchedule">选择时间</Button></div><Button size="sm" variant="outline" class="w-full" :disabled="loading || busy || !scope.length" @click="start(true)"><Shuffle :size="14" />从当前范围随机一场</Button></div>
         </aside>
       </div>
       <div class="finder-statusbar"><span>{{ matches }} 场比赛<span v-if="selectedPath.length"> · 当前范围 {{ scope.length }} 场</span></span><span v-if="current" :title="current.key">{{ current.key }}</span><span v-else>选择一场比赛以开始</span></div>
     </div>
+    <Modal :open="scheduleOpen" title="选择开始时间" :width="420" root-class-name="srk-general-modal-root" @close="scheduleOpen = false" @update:open="scheduleOpen = $event">
+      <form @submit.prevent="startScheduled">
+        <span class="flex flex-col gap-2 text-sm"><span>预约开始时间</span><span class="flex items-center gap-2"><select v-model="scheduleHour" class="finder-select" aria-label="预约小时"><option v-for="hour in 24" :key="hour - 1" :value="String(hour - 1).padStart(2, '0')">{{ String(hour - 1).padStart(2, '0') }}</option></select><span>:</span><select v-model="scheduleMinute" class="finder-select" aria-label="预约分钟"><option v-for="minute in 60" :key="minute - 1" :value="String(minute - 1).padStart(2, '0')">{{ String(minute - 1).padStart(2, '0') }}</option></select></span></span>
+        <p class="my-4 text-sm text-muted-foreground">只需选择时间；如果今天已过这个时间，将预约到明天。</p>
+        <p v-if="scheduleError" class="mb-4 text-sm text-destructive" role="alert">{{ scheduleError }}</p>
+        <Button size="sm" type="submit">确认预约</Button>
+      </form>
+    </Modal>
   </section>
 </template>
 

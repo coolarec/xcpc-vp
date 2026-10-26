@@ -65,7 +65,10 @@ const viewportStyle = computed(() => ({ marginLeft: enabledScrollSolution.value 
 const ccpc26Active = computed(() => !!ranklist.value && shouldEnableCCPC26(ranklist.value, { isLive: true, timeTravelTime: elapsed.value, now: now.value }));
 const revealedProblems = computed(() => ccpc26Active.value && ranklist.value ? new Set(getCCPC26ProblemLayout(ranklist.value)?.revealedProblemIndexes || []) : null);
 // Preserve the legacy default-penalty key so existing default sessions still restore.
-const storageKey = computed(() => `RanklandVP2:${key.value}:${run.value}:${options.value.rule}:${options.value.revealCount}:${options.value.revealRatio}:null:${options.value.startMinutes}`);
+const scheduledAtMs = computed(() => options.value.scheduledAt ? Date.parse(options.value.scheduledAt) : NaN);
+const waitingForSchedule = computed(() => Number.isFinite(scheduledAtMs.value) && now.value < scheduledAtMs.value);
+const scheduledLabel = computed(() => Number.isFinite(scheduledAtMs.value) ? new Date(scheduledAtMs.value).toLocaleString('zh-CN', { dateStyle: 'medium', timeStyle: 'short' }) : '');
+const storageKey = computed(() => `RanklandVP2:${key.value}:${run.value}:${options.value.rule}:${options.value.revealCount}:${options.value.revealRatio}:${options.value.scheduledAt || 'null'}:${options.value.startMinutes}`);
 let anchorTime = Date.now();
 let anchorElapsed = 0;
 let cursor = 0;
@@ -133,7 +136,15 @@ function redraw(pushEvents = true) {
 }
 function tick() {
   now.value = Date.now();
-  if (!running.value || !replay.value) return;
+  if (!replay.value) return;
+  if (!running.value && Number.isFinite(scheduledAtMs.value) && now.value >= scheduledAtMs.value && !ended.value) {
+    running.value = true;
+    anchorTime = scheduledAtMs.value;
+    anchorElapsed = options.value.startMinutes * 60_000;
+    elapsed.value = anchorElapsed;
+    save();
+  }
+  if (!running.value) return;
   elapsed.value = Math.min(duration.value, anchorElapsed + Math.max(0, now.value - anchorTime) * speed.value);
   if (solutionTime(cursor) <= elapsed.value || ended.value) redraw();
   if (ended.value) { running.value = false; save(); }
@@ -224,8 +235,9 @@ watch(key, async value => {
     if (options.value.startMinutes * 60000 >= duration.value) throw new Error('起始时间必须小于比赛时长。');
     activeKey = value; elapsed.value = options.value.startMinutes * 60000; speed.value = options.value.speed; manual.value = []; ownName.value = options.value.team;
     ownOrganization.value = options.value.organization;
-    running.value = options.value.autoplay;
+    running.value = options.value.autoplay || !!options.value.scheduledAt;
     try { restore(); } catch (e) { running.value = false; savingError.value = e instanceof Error ? e.message : '无法恢复本地进度。'; }
+    if (waitingForSchedule) running.value = false;
     cursor = 0; feedKey.value++; problem.value = 0; customSubmissionTime.value = false; reanchor(); redraw(false);
     save();
   } catch (e) { if (request === generation) error.value = e instanceof Error ? e.message : '比赛加载失败，请返回合集重选。'; }
@@ -253,7 +265,7 @@ onBeforeUnmount(() => {
     <Head><title>{{ formatTitle(`VP: ${resolveText(ranklist.contest.title)}`) }}</title></Head>
     <p v-if="savingError" class="mx-4 mb-4 text-sm text-muted-foreground" role="status">{{ savingError }}</p>
     <div class="mx-4 mb-2 flex flex-wrap items-center justify-center gap-3">
-      <Button size="sm" :disabled="ended" @click="toggleRunning">{{ ended ? '比赛结束' : running ? '暂停' : elapsed ? '继续虚拟参赛' : '开始虚拟参赛' }}</Button>
+      <Button size="sm" :disabled="ended || waitingForSchedule" @click="toggleRunning">{{ ended ? '比赛结束' : waitingForSchedule ? '等待预约开始' : running ? '暂停' : elapsed ? '继续虚拟参赛' : '开始虚拟参赛' }}</Button>
       <label class="inline-flex items-center gap-2 text-sm">倍速
         <select class="srk-ranklist-org-select !w-auto" :value="speed" aria-label="虚拟参赛倍速" @change="setSpeed">
           <option v-for="value in [1, 2, 5, 10, 30, 60]" :key="value" :value="value">{{ value }}×</option>
@@ -262,6 +274,7 @@ onBeforeUnmount(() => {
       <Button size="sm" variant="outline" @click="resetOpen = true">重新开始</Button>
       <Button size="sm" variant="outline" @click="openTeamForm">{{ ownName ? '修改队伍信息' : '加入我的队伍' }}</Button>
     </div>
+    <p v-if="waitingForSchedule" class="mx-4 mb-4 text-center text-sm text-primary" role="status">预约开始：{{ scheduledLabel }}</p>
     <div v-if="ownName" class="mx-4 mb-4 flex flex-wrap items-center justify-center gap-3">
         <span class="text-sm">{{ ownName }}<span v-if="ownOrganization" class="ml-2 text-muted-foreground">{{ ownOrganization }}</span></span>
         <select v-model="problem" class="srk-ranklist-org-select !w-auto" aria-label="题目">

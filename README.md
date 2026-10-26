@@ -61,6 +61,7 @@ run       当前 VP 实例 ID
 rule      auto、ICPC 或 CCPC26
 speed     1、2、5、10、30、60
 from      起始时间，单位为分钟
+at        预约现实开始时间（ISO 时间；界面只选择时分）
 team      队伍名称
 organization 学校 / 单位（可选）
 feed      是否显示实时提交条，0 或 1
