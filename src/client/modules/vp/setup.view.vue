@@ -13,6 +13,7 @@ import { applyVPOptions, buildVPQuery, DEFAULT_VP_OPTIONS, readVPOptions } from 
 import { prepareReplay } from './replay';
 import { buildFinderTree, findFinderContestPath, flattenFinderContests, getFinderColumns, getFinderScope, selectedFinderNodes, type FinderContest, type FinderNode } from './finder-tree';
 import ContestPreview from './ContestPreview.vue';
+import PresenceCount from './PresenceCount.vue';
 import icpcLogoBlack from '@/assets/icpc_logo_black.png';
 import icpcLogoWhite from '@/assets/icpc_logo_white.png';
 import ccpcLogoBlack from '@/assets/ccpc_logo_black.png';
@@ -203,7 +204,7 @@ onBeforeUnmount(() => { generation++; previewGeneration++; });
     <div class="finder-window">
       <div class="finder-pathbar">
         <nav aria-label="当前选择路径"><button :disabled="busy" @click="selectedPath = []">全部赛事</button><template v-for="(node, index) in selection" :key="node.id"><ChevronRight :size="12" /><button :title="node.label" :disabled="busy" @click="selectedPath = selectedPath.slice(0, index + 1)">{{ node.label }}</button></template></nav>
-        <span class="finder-source">RankLand 官方合集</span>
+        <PresenceCount />
       </div>
       <div class="finder-body">
         <div v-if="loading" class="finder-loading"><Loading /><span>正在读取比赛合集…</span></div>
@@ -265,7 +266,7 @@ onBeforeUnmount(() => { generation++; previewGeneration++; });
 .finder-pathbar nav > button { border: 0; padding: 2px 0; background: none; color: inherit; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; max-width: 240px; }
 .finder-pathbar nav > button:hover { color: hsl(var(--primary)); }
 .finder-pathbar nav > svg { flex-shrink: 0; color: hsl(var(--muted-foreground)); }
-.finder-source { font-size: 11px; color: hsl(var(--muted-foreground)); white-space: nowrap; margin-left: 12px; }
+.finder-pathbar :deep([data-id="vp-presence-count"]) { margin: 0 0 0 auto; white-space: nowrap; }
 .finder-body { --finder-config-width: 304px; display: flex; flex: 1; min-height: 0; min-width: 0; }
 .finder-loading { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; color: hsl(var(--muted-foreground)); font-size: 12px; }
 .finder-columns { position: relative; display: flex; flex: 0 1 auto; width: max-content; max-width: calc(100% - var(--finder-config-width) - 200px); min-width: 0; overflow-x: auto; overflow-y: hidden; overscroll-behavior-x: contain; }
@@ -316,7 +317,6 @@ onBeforeUnmount(() => { generation++; previewGeneration++; });
   .finder-body { --finder-config-width: 282px; }
   .finder-column { flex-basis: 190px; width: 190px; }
   .finder-column-first { flex-basis: 150px; width: 150px; }
-  .finder-source { display: none; }
   .finder-page-heading { gap: 12px; }
   .finder-title > span { display: none; }
 }

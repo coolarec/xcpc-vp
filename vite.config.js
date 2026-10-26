@@ -1,6 +1,7 @@
 const { defineConfig } = require('vite');
 const path = require('path');
 const vue = require('@vitejs/plugin-vue');
+const vpPresenceDev = require('./scripts/vp-presence-dev.cjs');
 
 module.exports = defineConfig(({ command }) => {
   const isBuild = command === 'build';
@@ -38,6 +39,7 @@ module.exports = defineConfig(({ command }) => {
     },
     plugins: [
       vue(),
+      vpPresenceDev(),
     ],
   };
 });

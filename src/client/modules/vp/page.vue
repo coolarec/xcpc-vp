@@ -3,6 +3,7 @@ import { computed } from 'vue';
 import { useRoute } from 'vue-router';
 import SetupView from './setup.view.vue';
 import VpView from './vp.view.vue';
+import PresenceCount from './PresenceCount.vue';
 
 const route = useRoute();
 const contestKey = computed(() => typeof route.query.contest === 'string' ? route.query.contest : '');
