@@ -110,6 +110,7 @@ import { isCCPC26Ranklist } from '@/utils/ccpc26.util';
 import SearchableMultiSelect from './SearchableMultiSelect.vue';
 import SettingInfoTip from './SettingInfoTip.vue';
 import RanklistQualityAction from './RanklistQualityAction.vue';
+import ReplayProgressBar from './ReplayProgressBar.vue';
 import './styled-ranklist-renderer.less';
 
 const props = withDefaults(defineProps<StyledRanklistRendererProps>(), {
@@ -1276,8 +1277,14 @@ function resolveDisplayText(text: Parameters<typeof resolveText>[0]) {
       {{ contestTimeRange.startText }} ~ {{ contestTimeRange.endText }}
     </p>
     <div class="mx-4" data-id="ranklist-progress">
+      <ReplayProgressBar
+        v-if="replayElapsedMs !== undefined"
+        :data="memorizedData"
+        :elapsed-ms="replayElapsedMs"
+        :live="isLive"
+      />
       <ProgressBar
-        v-if="!isLive || clientClockReady"
+        v-else-if="!isLive || clientClockReady"
         :key="progressBarRenderKey"
         :data="memorizedData"
         :enable-time-travel="enableTimeTravel"

@@ -61,7 +61,6 @@ const submissionTimeError = computed(() => {
   try { parseSubmissionTime(submissionHour.value, submissionMinute.value, elapsed.value, duration.value); return ''; }
   catch (e) { return e instanceof Error ? e.message : '提交时间无效。'; }
 });
-const progressTimeDelta = computed(() => now.value - (Date.parse(ranklist.value?.contest.startAt || '') + elapsed.value));
 const viewportStyle = computed(() => ({ marginLeft: enabledScrollSolution.value ? '250px' : undefined, width: enabledScrollSolution.value ? 'calc(100% - 250px)' : '100%', minWidth: '0' }));
 const ccpc26Active = computed(() => !!ranklist.value && shouldEnableCCPC26(ranklist.value, { isLive: true, timeTravelTime: elapsed.value, now: now.value }));
 const revealedProblems = computed(() => ccpc26Active.value && ranklist.value ? new Set(getCCPC26ProblemLayout(ranklist.value)?.revealedProblemIndexes || []) : null);
@@ -304,7 +303,7 @@ onBeforeUnmount(() => {
     <p v-if="submissionTimeError" id="submission-time-error" class="mx-4 mb-2 text-center text-sm text-destructive" role="alert">{{ submissionTimeError }}</p>
     <StyledRanklist
       :data="ranklist" :name="key" :id="key" show-filter show-progress is-live fit-problem-columns
-      :progress-time-delta="progressTimeDelta" :enable-time-travel="false" :replay-elapsed-ms="elapsed" :ccpc26-mode="true" table-class="ml-4 min-w-0 max-md:ml-0"
+      :enable-time-travel="false" :replay-elapsed-ms="elapsed" :ccpc26-mode="true" table-class="ml-4 min-w-0 max-md:ml-0"
     >
       <template #after-ref-links>
         <p v-if="ccpc26Active" class="srk-ranklist-meta-line text-primary">CCPC 2026 · 动态揭题</p>

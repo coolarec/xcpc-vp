@@ -192,3 +192,24 @@ it('keeps the clock running when submission storage is unavailable', async () =>
   expect(view.elapsed).toBe(60_000);
   expect(view.running).toBe(true);
 });
+
+it('keeps a completed five-hour run at the finish when time passes and after reloading', async () => {
+  let view = await mount();
+  now += 18_000_000;
+  view.tick();
+  const finishedRanklist = view.ranklist;
+  for (const delay of [250, 1000, 60_000, 18_000_000]) {
+    now += delay;
+    view.tick();
+    expect(view.elapsed).toBe(18_000_000);
+    expect(view.running).toBe(false);
+    expect(view.ended).toBe(true);
+    expect(view.ranklist).toBe(finishedRanklist);
+  }
+  apps[0].unmount();
+  apps = [];
+  view = await mount();
+  expect(view.elapsed).toBe(18_000_000);
+  expect(view.ended).toBe(true);
+  expect(view.running).toBe(false);
+});
