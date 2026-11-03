@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref, shallowRef, watch } from 'vue';
-import { onBeforeRouteLeave, onBeforeRouteUpdate, useRoute, useRouter } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 import type * as srk from '@algoux/standard-ranklist';
 import { formatTimeDuration, getCCPC26ProblemLayout, resolveText } from '@algoux/standard-ranklist-utils';
 import { Modal } from '@algoux/standard-ranklist-renderer-component-vue';
@@ -14,7 +14,9 @@ import type { ScrollSolutionDataItem } from './ScrollSolution.vue';
 import { useRanklandApi } from '@/services/ranklist-api';
 import { formatTitle } from '@/app/title-format';
 import { isManualResult, MANUAL_RESULTS, prepareReplay, type ManualResult, type ManualSubmission } from './replay';
-import { applyVPOptions, DEFAULT_VP_OPTIONS, readVPOptions, type VPOptions } from './options';
+import { applyVPOptions, buildVPQuery, DEFAULT_VP_OPTIONS, readVPOptions, type VPOptions } from './options';
+import { readVPClock, reanchorVPClock } from './clock';
+import { formatChinaTime, formatChinaTimeLabel } from './china-time';
 import { shouldEnableCCPC26 } from '@/utils/ccpc26.util';
 import { parseSubmissionTime } from './submission-time';
 import { useVPPresence } from './presence';
@@ -49,8 +51,6 @@ const feedKey = ref(0);
 const clientWidth = ref(window.innerWidth);
 const clientHeight = ref(window.innerHeight);
 const key = computed(() => typeof route.query.contest === 'string' ? route.query.contest : '');
-// Keep old run links able to restore their saved progress; new links omit run.
-const run = computed(() => typeof route.query.run === 'string' ? route.query.run : 'default');
 const enabledScrollSolution = computed(() => route.query.feed !== '0' && clientWidth.value >= 768);
 const duration = computed(() => replay.value?.durationMs || 0);
 const ended = computed(() => !!duration.value && elapsed.value >= duration.value);
@@ -65,53 +65,46 @@ const progressTimeDelta = computed(() => now.value - (Date.parse(ranklist.value?
 const viewportStyle = computed(() => ({ marginLeft: enabledScrollSolution.value ? '250px' : undefined, width: enabledScrollSolution.value ? 'calc(100% - 250px)' : '100%', minWidth: '0' }));
 const ccpc26Active = computed(() => !!ranklist.value && shouldEnableCCPC26(ranklist.value, { isLive: true, timeTravelTime: elapsed.value, now: now.value }));
 const revealedProblems = computed(() => ccpc26Active.value && ranklist.value ? new Set(getCCPC26ProblemLayout(ranklist.value)?.revealedProblemIndexes || []) : null);
-// Preserve the legacy default-penalty key so existing default sessions still restore.
 const scheduledAtMs = computed(() => options.value.scheduledAt ? Date.parse(options.value.scheduledAt) : NaN);
-const waitingForSchedule = computed(() => Number.isFinite(scheduledAtMs.value) && now.value < scheduledAtMs.value);
+const waitingForSchedule = computed(() => options.value.autoplay && Number.isFinite(scheduledAtMs.value) && now.value < scheduledAtMs.value);
 useVPPresence(computed(() => !!ranklist.value && running.value && !ended.value && !waitingForSchedule.value), key);
-const scheduledLabel = computed(() => Number.isFinite(scheduledAtMs.value) ? new Date(scheduledAtMs.value).toLocaleString('zh-CN', { dateStyle: 'medium', timeStyle: 'short' }) : '');
-const storageKey = computed(() => `RanklandVP2:${key.value}:${run.value}:${options.value.rule}:${options.value.revealCount}:${options.value.revealRatio}:${options.value.scheduledAt || 'null'}:${options.value.startMinutes}`);
-let anchorTime = Date.now();
-let anchorElapsed = 0;
+const scheduledLabel = computed(() => Number.isFinite(scheduledAtMs.value) ? `${formatChinaTimeLabel(scheduledAtMs.value)}（北京时间）` : '');
+// Only submissions are stored. Each actual start has its own records; clocks always come from the URL.
+const storageKey = computed(() => `RanklandVP:submissions:${key.value}:${new Date(scheduledAtMs.value).toISOString()}:${options.value.rule}:${options.value.revealCount}:${options.value.revealRatio}`);
 let cursor = 0;
 let generation = 0;
-let lastSaved = 0;
-let activeKey = '';
 
-function save() {
-  if (!replay.value || activeKey !== key.value) return;
+function saveSubmissions() {
+  if (!replay.value) return;
   try {
-    localStorage.setItem(storageKey.value, JSON.stringify({
-      version: 2, elapsed: elapsed.value, savedAt: Date.now(), running: running.value,
-      speed: speed.value, ownName: ownName.value, ownOrganization: ownOrganization.value, manual: manual.value,
-    }));
-    lastSaved = Date.now();
-  } catch { savingError.value = '浏览器无法保存进度，关闭页面前请注意记录比赛时间。'; }
+    localStorage.setItem(storageKey.value, JSON.stringify(manual.value));
+    savingError.value = '';
+  } catch { savingError.value = '浏览器无法保存手动提交，关闭页面前请注意记录提交结果。'; }
 }
-function restore() {
+function restoreSubmissions() {
   const stored = localStorage.getItem(storageKey.value);
-  if (!stored) return false;
-  const state = JSON.parse(stored);
-  if (state.version !== 2 || typeof state.elapsed !== 'number' || !Number.isFinite(state.elapsed) ||
-      state.elapsed < 0 || state.elapsed > duration.value || typeof state.savedAt !== 'number' ||
-      !Number.isFinite(state.savedAt) || ![1, 2, 5, 10, 30, 60].includes(state.speed) ||
-      typeof state.running !== 'boolean' || typeof state.ownName !== 'string' || state.ownName.length > 80 ||
-      !Array.isArray(state.manual) || state.manual.length > 10000) throw new Error('保存的 VP 进度格式无效。');
-  for (const submission of state.manual) {
+  if (!stored) return;
+  const submissions = JSON.parse(stored);
+  if (!Array.isArray(submissions) || submissions.length > 10000) throw new Error('保存的提交记录格式无效。');
+  for (const submission of submissions) {
     if (!submission ||
         !Number.isInteger(submission.problemIndex) || submission.problemIndex < 0 || submission.problemIndex >= replay.value.source.problems.length ||
         !isManualResult(submission.result) || typeof submission.timeMs !== 'number' || !Number.isFinite(submission.timeMs) ||
         submission.timeMs < 0 || submission.timeMs > duration.value) throw new Error('保存的提交记录格式无效。');
   }
-  ownName.value = state.ownName;
-  ownOrganization.value = typeof state.ownOrganization === 'string' ? state.ownOrganization.trim().slice(0, 80) : options.value.organization;
-  manual.value = state.manual;
-  speed.value = state.speed;
-  elapsed.value = Math.min(duration.value, state.elapsed + (state.running ? Math.max(0, Date.now() - state.savedAt) * state.speed : 0));
-  running.value = state.running && !ended.value;
-  return true;
+  manual.value = submissions;
 }
-function reanchor() { anchorTime = Date.now(); anchorElapsed = elapsed.value; }
+async function syncOptions(next: VPOptions) {
+  options.value = next;
+  speed.value = next.speed;
+  tick();
+  try {
+    await router.replace({ query: {
+      ...route.query, run: undefined, anchor: undefined, team: undefined, organization: undefined,
+      count: undefined, ratio: undefined, ...buildVPQuery(key.value, next),
+    } });
+  } catch { savingError.value = '无法更新比赛链接，请保留当前页面。'; }
+}
 function solutionTime(index: number) {
   const solution = replay.value?.solutions[index];
   return solution?.[3] ? formatTimeDuration(solution[3], 'ms') : Infinity;
@@ -139,45 +132,51 @@ function redraw(pushEvents = true) {
 function tick() {
   now.value = Date.now();
   if (!replay.value) return;
-  if (!running.value && Number.isFinite(scheduledAtMs.value) && now.value >= scheduledAtMs.value && !ended.value) {
-    running.value = true;
-    anchorTime = scheduledAtMs.value;
-    anchorElapsed = options.value.startMinutes * 60_000;
-    elapsed.value = anchorElapsed;
-    save();
-  }
-  if (!running.value) return;
-  elapsed.value = Math.min(duration.value, anchorElapsed + Math.max(0, now.value - anchorTime) * speed.value);
-  if (solutionTime(cursor) <= elapsed.value || ended.value) redraw();
-  if (ended.value) { running.value = false; save(); }
-  else if (now.value - lastSaved > 5000) save();
+  const clock = readVPClock(options.value, duration.value, now.value);
+  const previousElapsed = elapsed.value;
+  elapsed.value = clock.elapsed;
+  running.value = clock.running;
+  if (previousElapsed !== elapsed.value && (solutionTime(cursor) <= elapsed.value || ended.value)) redraw();
 }
-function toggleRunning() {
+async function toggleRunning() {
   tick();
-  if (ended.value) return;
-  running.value = !running.value;
-  reanchor(); save();
+  if (ended.value || waitingForSchedule.value) return;
+  const next = !options.value.autoplay && !options.value.anchorAt
+    ? { ...options.value, scheduledAt: formatChinaTime(now.value), autoplay: true }
+    : reanchorVPClock(options.value, elapsed.value, now.value, { autoplay: !running.value });
+  await syncOptions(next);
+  tick();
 }
-function setSpeed(event: Event) {
-  tick(); speed.value = Number((event.target as HTMLSelectElement).value); reanchor(); save();
+async function setSpeed(event: Event) {
+  tick();
+  const nextSpeed = Number((event.target as HTMLSelectElement).value);
+  if (![1, 2, 5, 10, 30, 60].includes(nextSpeed)) return;
+  const next = waitingForSchedule.value || (!options.value.autoplay && !options.value.anchorAt) ? { ...options.value, speed: nextSpeed }
+    : reanchorVPClock(options.value, elapsed.value, now.value, { speed: nextSpeed });
+  await syncOptions(next);
+  tick();
 }
-function reset() {
+async function reset() {
   running.value = false; elapsed.value = 0; manual.value = []; ownName.value = ''; ownNameInput.value = ''; cursor = 0;
   ownOrganization.value = ''; ownOrganizationInput.value = '';
   customSubmissionTime.value = false;
-  resetOpen.value = false; feedKey.value++; reanchor(); redraw(false); save();
+  resetOpen.value = false; feedKey.value++;
+  await syncOptions({ ...options.value, scheduledAt: formatChinaTime(Date.now()), anchorAt: '', startMinutes: 0, autoplay: false, team: '', organization: '' });
+  redraw(false);
 }
 function openTeamForm() {
   ownNameInput.value = ownName.value;
   ownOrganizationInput.value = ownOrganization.value;
   joinOpen.value = true;
 }
-function join() {
+async function join() {
   const name = ownNameInput.value.trim();
   const organization = ownOrganizationInput.value.trim();
   if (!name || name.length > 80 || organization.length > 80) return;
   tick();
-  ownName.value = name; ownOrganization.value = organization; joinOpen.value = false; redraw(false); save();
+  ownName.value = name; ownOrganization.value = organization; joinOpen.value = false;
+  await syncOptions({ ...options.value, team: name, organization });
+  redraw(false);
 }
 function record() {
   tick();
@@ -189,7 +188,7 @@ function record() {
   const own = ranklist.value?.rows.find(row => row.user.id === '__vp_self__');
   if (['AC', 'FB'].includes(own?.statuses[problem.value]?.result || '')) return;
   manual.value = [...manual.value, { problemIndex: problem.value, timeMs, result: result.value }];
-  redraw(false); save();
+  redraw(false); saveSubmissions();
   const updatedOwn = ranklist.value.rows.find(row => row.user.id === '__vp_self__');
   scrollSolution.value?.pushSolutions([{
     problem: { alias: revealedProblems.value && !revealedProblems.value.has(problem.value) ? '?' : ranklist.value.problems[problem.value].alias || String(problem.value + 1) },
@@ -208,52 +207,61 @@ function editSubmissionTime(field: 'hour' | 'minute', event: Event) {
   else submissionMinute.value = value;
 }
 async function changeScroll(checked: boolean) {
-  await router.replace({ query: { ...route.query, feed: checked ? '1' : '0' } });
+  await syncOptions({ ...options.value, feed: checked });
 }
 function resize() { clientWidth.value = window.innerWidth; clientHeight.value = window.innerHeight; }
-function saveOnLeave() { tick(); save(); }
-
-onBeforeRouteLeave(saveOnLeave);
-onBeforeRouteUpdate((to, from) => {
-  if (to.query.contest !== from.query.contest || to.query.run !== from.query.run) saveOnLeave();
-});
 
 function backToSetup() {
-  return router.push({ path: '/', query: { ...route.query, selected: key.value, contest: undefined, run: undefined, play: undefined, speed: String(speed.value), team: ownName.value || undefined, organization: ownOrganization.value || undefined } });
+  return router.push({ path: '/', query: { ...route.query, selected: key.value, contest: undefined, run: undefined, at: undefined, anchor: undefined, from: undefined, play: undefined, speed: String(speed.value), team: ownName.value || undefined, organization: ownOrganization.value || undefined } });
 }
 
 watch(key, async value => {
   const request = ++generation;
-  save(); running.value = false; replay.value = undefined; ranklist.value = undefined;
+  running.value = false; replay.value = undefined; ranklist.value = undefined;
   loading.value = true; error.value = ''; savingError.value = '';
   try {
     if (!api) throw new Error('RankLand API 未初始化。');
     if (!/^[a-zA-Z0-9][a-zA-Z0-9._-]{0,127}$/.test(value)) throw new Error('比赛 ID 格式不正确。');
-    if (!/^[a-zA-Z0-9._-]{1,128}$/.test(run.value)) throw new Error('参赛标识格式不正确。');
     options.value = readVPOptions(route.query);
+    // Give legacy links an explicit real start too; never restore a stored clock.
+    if (!options.value.scheduledAt || route.query.at !== options.value.scheduledAt || (options.value.anchorAt && route.query.anchor !== options.value.anchorAt)) {
+      await syncOptions({ ...options.value, scheduledAt: options.value.scheduledAt || formatChinaTime(Date.now()) });
+      if (request !== generation) return;
+    }
     const data = await api.getRanklist({ uniqueKey: value });
     if (request !== generation) return;
     replay.value = prepareReplay(applyVPOptions(data.srk, options.value));
-    if (options.value.startMinutes * 60000 >= duration.value) throw new Error('起始时间必须小于比赛时长。');
-    activeKey = value; elapsed.value = options.value.startMinutes * 60000; speed.value = options.value.speed; manual.value = []; ownName.value = options.value.team;
+    if (options.value.startMinutes * 60000 > duration.value || (!options.value.anchorAt && options.value.startMinutes * 60000 === duration.value)) throw new Error('起始时间必须小于比赛时长。');
+    elapsed.value = options.value.startMinutes * 60000; speed.value = options.value.speed; manual.value = []; ownName.value = options.value.team;
     ownOrganization.value = options.value.organization;
-    running.value = options.value.autoplay || !!options.value.scheduledAt;
-    try { restore(); } catch (e) { running.value = false; savingError.value = e instanceof Error ? e.message : '无法恢复本地进度。'; }
-    if (waitingForSchedule.value) running.value = false;
-    cursor = 0; feedKey.value++; problem.value = 0; customSubmissionTime.value = false; reanchor(); redraw(false);
-    save();
+    try { restoreSubmissions(); } catch (e) { savingError.value = e instanceof Error ? e.message : '无法恢复手动提交。'; }
+    cursor = 0; feedKey.value++; problem.value = 0; customSubmissionTime.value = false; tick(); redraw(false);
   } catch (e) { if (request === generation) error.value = e instanceof Error ? e.message : '比赛加载失败，请返回合集重选。'; }
   finally { if (request === generation) loading.value = false; }
 }, { immediate: true });
 
+watch(() => route.query, query => {
+  if (!replay.value || loading.value) return;
+  try {
+    const next = readVPOptions(query);
+    const newStart = Date.parse(next.scheduledAt) !== Date.parse(options.value.scheduledAt);
+    options.value = next; speed.value = next.speed;
+    ownName.value = next.team; ownOrganization.value = next.organization;
+    if (newStart) {
+      manual.value = [];
+      try { restoreSubmissions(); } catch (e) { savingError.value = e instanceof Error ? e.message : '无法恢复手动提交。'; }
+    }
+    cursor = 0; tick(); redraw(false);
+  } catch (e) { error.value = e instanceof Error ? e.message : '参数格式不正确。'; }
+});
+
 const timer = window.setInterval(tick, 250);
 window.addEventListener('resize', resize);
-window.addEventListener('pagehide', saveOnLeave);
-document.addEventListener('visibilitychange', saveOnLeave);
+document.addEventListener('visibilitychange', tick);
 onBeforeUnmount(() => {
-  saveOnLeave(); generation++; window.clearInterval(timer);
-  window.removeEventListener('resize', resize); window.removeEventListener('pagehide', saveOnLeave);
-  document.removeEventListener('visibilitychange', saveOnLeave);
+  generation++; window.clearInterval(timer);
+  window.removeEventListener('resize', resize);
+  document.removeEventListener('visibilitychange', tick);
 });
 </script>
 
