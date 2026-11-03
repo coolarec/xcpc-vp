@@ -1,10 +1,12 @@
 import type * as srk from '@algoux/standard-ranklist';
+import { formatChinaTime, parseChinaTime } from './china-time';
 
 export interface VPOptions {
   rule: 'auto' | 'ICPC' | 'CCPC26';
   speed: number;
   startMinutes: number;
   scheduledAt: string;
+  anchorAt: string;
   team: string;
   organization: string;
   feed: boolean;
@@ -14,7 +16,7 @@ export interface VPOptions {
 }
 
 export const DEFAULT_VP_OPTIONS: VPOptions = {
-  rule: 'auto', speed: 1, startMinutes: 0, scheduledAt: '', team: '', organization: '', feed: true,
+  rule: 'auto', speed: 1, startMinutes: 0, scheduledAt: '', anchorAt: '', team: '', organization: '', feed: true,
   revealCount: 50, revealRatio: 20, autoplay: false,
 };
 
@@ -33,6 +35,14 @@ function numeric(query: Record<string, unknown>, key: string, fallback: number, 
   return num;
 }
 
+function datetime(query: Record<string, unknown>, key: string, label: string): string {
+  const raw = (value(query, key) || '').trim();
+  if (!raw) return '';
+  const timestamp = parseChinaTime(raw);
+  if (!Number.isFinite(timestamp)) throw new Error(`${label}格式不正确。`);
+  return formatChinaTime(timestamp);
+}
+
 export function readVPOptions(query: Record<string, unknown>): VPOptions {
   const rule = value(query, 'rule') || 'auto';
   if (!['auto', 'ICPC', 'CCPC26'].includes(rule)) throw new Error('赛制参数仅支持 auto、ICPC 或 CCPC26。');
@@ -42,8 +52,9 @@ export function readVPOptions(query: Record<string, unknown>): VPOptions {
   if (team.length > 80) throw new Error('队伍名称不能超过 80 字。');
   const organization = (value(query, 'organization') || '').trim();
   if (organization.length > 80) throw new Error('学校 / 单位不能超过 80 字。');
-  const scheduledAt = (value(query, 'at') || '').trim();
-  if (scheduledAt && !Number.isFinite(Date.parse(scheduledAt))) throw new Error('预约时间格式不正确。');
+  const scheduledAt = datetime(query, 'at', '开始时间');
+  const anchorAt = datetime(query, 'anchor', '计时基准时间');
+  if (anchorAt && (!scheduledAt || !Number.isFinite(Date.parse(anchorAt)) || Date.parse(anchorAt) < Date.parse(scheduledAt))) throw new Error('计时基准时间格式不正确。');
   const feed = value(query, 'feed');
   if (feed !== undefined && !['0', '1'].includes(feed)) throw new Error('feed 参数必须为 0 或 1。');
   const play = value(query, 'play');
@@ -52,18 +63,19 @@ export function readVPOptions(query: Record<string, unknown>): VPOptions {
   const revealRatio = numeric(query, 'ratio', 20, 100);
   if (rule === 'CCPC26' && revealCount === 0 && revealRatio === 0) throw new Error('CCPC 2026 至少需要一个非零揭题阈值。');
   return {
-    rule: rule as VPOptions['rule'], speed, team, organization, scheduledAt, feed: feed !== '0', autoplay: play === '1',
+    rule: rule as VPOptions['rule'], speed, team, organization, scheduledAt, anchorAt, feed: feed !== '0', autoplay: play === '1' || (play === undefined && !!scheduledAt),
     startMinutes: numeric(query, 'from', 0, 10080), revealCount, revealRatio,
   };
 }
 
-export function buildVPQuery(contest: string, options: VPOptions): Record<string, string> {
+export function buildVPQuery(contest: string, options: VPOptions, now = Date.now()): Record<string, string> {
   if (!/^[a-zA-Z0-9][a-zA-Z0-9._-]{0,127}$/.test(contest)) throw new Error('比赛 ID 无效。');
   const query: Record<string, string> = {
     contest, rule: options.rule, speed: String(options.speed),
     from: String(options.startMinutes), feed: options.feed ? '1' : '0', play: options.autoplay ? '1' : '0',
   };
-  if (options.scheduledAt.trim()) query.at = options.scheduledAt.trim();
+  query.at = datetime({ at: options.scheduledAt }, 'at', '开始时间') || formatChinaTime(now);
+  if (options.anchorAt.trim()) query.anchor = datetime({ anchor: options.anchorAt }, 'anchor', '计时基准时间');
   if (options.team.trim()) query.team = options.team.trim();
   if (options.organization.trim()) query.organization = options.organization.trim();
   if (options.rule === 'CCPC26') {

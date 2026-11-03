@@ -10,7 +10,7 @@ const contestKey = computed(() => typeof route.query.contest === 'string' ? rout
 </script>
 
 <template>
-  <VpView v-if="contestKey" :key="`${contestKey}:${route.query.run || ''}`" />
+  <VpView v-if="contestKey" :key="contestKey" />
   <SetupView v-else />
   <footer class="mt-6 text-center text-xs leading-6 text-muted-foreground">
     <div>本网站数据来源 Rankland，访问 <a href="https://rank.ac" class="text-primary hover:underline">rank.ac</a> 自动跳转</div>
