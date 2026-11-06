@@ -28,6 +28,9 @@ module.exports = defineConfig(({ command }) => {
     },
     resolve: {
       alias: [
+        { find: /^path$/, replacement: require.resolve('path-browserify') },
+        { find: /^buffer$/, replacement: require.resolve('buffer/') },
+        { find: /^string_decoder$/, replacement: require.resolve('string_decoder/') },
         { find: '@public', replacement: path.resolve(__dirname, 'public') },
         { find: '@client', replacement: path.resolve(__dirname, 'src/client') },
         { find: '@common', replacement: path.resolve(__dirname, 'src/common') },
@@ -36,6 +39,12 @@ module.exports = defineConfig(({ command }) => {
     },
     build: {
       outDir: 'dist',
+      rollupOptions: {
+        input: {
+          rankland: path.resolve(__dirname, 'index.html'),
+          domjudge: path.resolve(__dirname, 'domjudge.html'),
+        },
+      },
     },
     plugins: [
       vue(),

@@ -15,6 +15,7 @@ import { formatChinaTime, getChinaClockTime, nextChinaStart } from './china-time
 import { buildFinderTree, findFinderContestPath, flattenFinderContests, getFinderColumns, getFinderScope, selectedFinderNodes, type FinderContest, type FinderNode } from './finder-tree';
 import ContestPreview from './ContestPreview.vue';
 import PresenceCount from './PresenceCount.vue';
+import { buildContestEntry, supportsDomjudgeEntry, type VPBoard } from './board-entry';
 import icpcLogoBlack from '@/assets/icpc_logo_black.png';
 import icpcLogoWhite from '@/assets/icpc_logo_white.png';
 import ccpcLogoBlack from '@/assets/ccpc_logo_black.png';
@@ -55,6 +56,9 @@ let generation = 0;
 let previewGeneration = 0;
 try { initial = readVPOptions(route.query); } catch (e) { initialError = e instanceof Error ? e.message : '参数格式不正确。'; }
 const options = reactive({ ...initial, autoplay: true });
+const board = ref<VPBoard>(route.query.board === 'domjudge' ? 'domjudge' : 'rankland');
+const canChooseDomjudge = computed(() => options.rule !== 'CCPC26' && (!previewData.value || supportsDomjudgeEntry(previewData.value.srk, options.rule)));
+watch(canChooseDomjudge, allowed => { if (!allowed) board.value = 'rankland'; });
 const tree = computed(() => buildFinderTree(collectionItems.value, search.value));
 const columns = computed(() => getFinderColumns(tree.value, selectedPath.value));
 const selection = computed(() => selectedFinderNodes(tree.value, selectedPath.value));
@@ -158,6 +162,7 @@ async function load() {
 }
 async function start(random = false, scheduledAt = '') {
   if (busy.value) return;
+  const clickedAt = formatChinaTime(Date.now());
   error.value = '';
   const request = ++generation;
   try {
@@ -175,12 +180,15 @@ async function start(random = false, scheduledAt = '') {
         if (!api) throw new Error('RankLand API 未初始化。');
         const data = previewData.value?.info.uniqueKey === candidate.key ? previewData.value : await api.getRanklist({ uniqueKey: candidate.key });
         if (request !== generation) return;
+        if (board.value === 'domjudge' && !supportsDomjudgeEntry(data.srk, settings.rule)) throw new Error('DOMjudge 仅支持传统 ICPC / CCPC 赛制，请选择 RankLand 或切换为传统赛制。');
         const replay = prepareReplay(applyVPOptions(data.srk, settings));
         if (settings.startMinutes * 60000 >= replay.durationMs) throw new Error('起始时间必须小于比赛时长。');
         selectedPath.value = findFinderContestPath(tree.value, candidate.key) || [];
-        await router.push({ path: '/', query: buildVPQuery(candidate.key, {
-          ...settings, scheduledAt: scheduledAt || formatChinaTime(Date.now()), anchorAt: '',
-        }) });
+        const startOptions = {
+          ...settings, scheduledAt: scheduledAt || clickedAt, anchorAt: '',
+        };
+        if (board.value === 'domjudge') window.location.assign(buildContestEntry(board.value, candidate.key, startOptions));
+        else await router.push({ path: '/', query: buildVPQuery(candidate.key, startOptions) });
         return;
       } catch (e) { lastError = e; if (!random) throw e; }
     }
@@ -225,11 +233,14 @@ onBeforeUnmount(() => { generation++; previewGeneration++; });
         <aside class="finder-config" aria-label="参赛配置">
           <div class="finder-config-heading"><span class="finder-config-label">参赛配置</span><template v-if="current"><h2><Settings :size="18" />{{ current.name }}</h2><p>{{ current.path.join(' / ') }}</p></template><template v-else><h2>{{ last?.label || '尚未选择比赛' }}</h2><p>逐列选择比赛后，在这里开始 VP。</p></template></div>
           <div class="finder-config-fields">
-            <label class="finder-field"><span>赛制</span><select v-model="options.rule" class="finder-select" aria-label="赛制" :disabled="busy"><option value="auto">跟随原比赛</option><option value="ICPC">ICPC / 传统 CCPC</option><option value="CCPC26">CCPC 2026</option></select></label>
+            <div class="finder-field-grid">
+              <label class="finder-field"><span>赛制</span><select v-model="options.rule" class="finder-select" aria-label="赛制" :disabled="busy"><option value="auto">跟随原比赛</option><option value="ICPC">ICPC / 传统 CCPC</option><option value="CCPC26">CCPC 2026</option></select></label>
+              <label class="finder-field"><span>榜单系统</span><select v-model="board" class="finder-select" aria-label="榜单系统" :disabled="busy"><option value="rankland">RankLand</option><option value="domjudge" :disabled="!canChooseDomjudge">DOMjudge</option></select></label>
+            </div>
             <div class="finder-field-grid"><label class="finder-field"><span>回放倍速</span><select v-model="options.speed" class="finder-select" aria-label="回放倍速" :disabled="busy"><option v-for="value in [1, 2, 5, 10, 30, 60]" :key="value" :value="value">{{ value }}×</option></select></label><label class="finder-field"><span>起始时间 / 分钟</span><Input v-model.number="options.startMinutes" class="h-8" aria-label="起始时间（分钟）" type="number" min="0" max="10080" step="1" :disabled="busy" /></label></div>
             <div v-if="options.rule === 'CCPC26'" class="finder-reveal"><span>CCPC 2026 揭题阈值</span><div class="finder-field-grid"><label class="finder-field"><span>通过队伍数</span><Input v-model.number="options.revealCount" class="h-8" aria-label="揭题队伍数" type="number" min="0" max="100000" step="1" :disabled="busy" /></label><label class="finder-field"><span>通过比例 / %</span><Input v-model.number="options.revealRatio" class="h-8" aria-label="揭题比例（%）" type="number" min="0" max="100" step="0.1" :disabled="busy" /></label></div><p>满足任一阈值即揭题；0 表示关闭该项。</p></div>
-            <label class="finder-field"><span>我的队伍名称 <small>可选</small></span><Input v-model="options.team" class="h-8" aria-label="我的队伍名称" maxlength="80" placeholder="加入榜单，手动同步判题结果" :disabled="busy" /></label>
-            <label class="finder-field"><span>学校 / 单位 <small>可选</small></span><Input v-model="options.organization" class="h-8" aria-label="学校 / 单位" maxlength="80" placeholder="填写学校或单位" :disabled="busy" /></label>
+            <label v-if="board === 'rankland'" class="finder-field"><span>我的队伍名称 <small>可选</small></span><Input v-model="options.team" class="h-8" aria-label="我的队伍名称" maxlength="80" placeholder="加入榜单，手动同步判题结果" :disabled="busy" /></label>
+            <label v-if="board === 'rankland'" class="finder-field"><span>学校 / 单位 <small>可选</small></span><Input v-model="options.organization" class="h-8" aria-label="学校 / 单位" maxlength="80" placeholder="填写学校或单位" :disabled="busy" /></label>
           </div>
           <div class="finder-config-actions"><p v-if="error" class="finder-error" role="alert">{{ error }}</p><Button v-if="!loading && !contests.length" variant="outline" size="sm" class="w-full" @click="load">重新加载合集</Button><div class="flex gap-2"><Button size="sm" class="min-w-0 flex-1" :disabled="loading || busy || !current" @click="start(false)">{{ busy ? '正在检查比赛数据…' : '立刻开始' }}<ChevronRight v-if="!busy" :size="14" /></Button><Button size="sm" variant="outline" class="min-w-0 flex-1" :disabled="loading || busy || !current" @click="openSchedule">选择时间</Button></div><Button size="sm" variant="outline" class="w-full" :disabled="loading || busy || !scope.length" @click="start(true)"><Shuffle :size="14" />从当前范围随机一场</Button></div>
         </aside>

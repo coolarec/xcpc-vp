@@ -1,0 +1,49 @@
+{
+  "repository": "https://github.com/DOMjudge/domjudge",
+  "revision": "071e3bafce3828a5cd32b5f4e41598705cbb6c72",
+  "sha256": {
+    "src/client/components/ranklist/vendor/domjudge/templates/public/menu.html.twig": "075d78bac4aaa7fd55578b83b436e9625d9782dead7861fb6a70a2e0fdddbd8b",
+    "src/client/components/ranklist/vendor/domjudge/templates/public/team_submissions_modal.html.twig": "e1254ad412fe4ec778c787f83d7fa6387a48830084eb3ad3b5dac0261c3cf582",
+    "src/client/components/ranklist/vendor/domjudge/templates/public/partials/submission_list_template.html.twig": "fc1d0df5415fa72af907e377115598ad2ff2fab0dae7407b1f21cc072b2d6961",
+    "src/client/components/ranklist/vendor/domjudge/templates/partials/problem_list.html.twig": "25dd302fe5b253f641965205583683c9b2e7c0f5bc55bf61844ca8b88b5e2181",
+    "src/client/components/ranklist/vendor/domjudge/templates/partials/modal.html.twig": "e56c8ed473fe9940ef716ebcee7827c9695f807fe45892a334282fe9f10d74ab",
+    "src/client/components/ranklist/vendor/domjudge/templates/partials/scoreboard_table.html.twig": "62a561e197130f7b15b42e237b27a12da585c86a3e4c8b159e0fe39e873bbbc8",
+    "src/client/components/ranklist/vendor/domjudge/templates/partials/scoreboard_progress_bar.html.twig": "9a44887ea36b1cb01409bf0d80b82b382963c1ccdc42bc0aac72c3078b0065cc",
+    "src/client/components/ranklist/vendor/domjudge/templates/partials/scoreboard.html.twig": "4c75822a01654a417dca531b7aaa5a0e143db0e70e2b2ba5e4e1b0449e18ee6f",
+    "src/client/components/ranklist/vendor/domjudge/templates/partials/scoreboard/_team_info_cells.html.twig": "641952df8d13fd0f715df7a78bbdcf3e2cf8bf0424c32be73c4b6269d981a185",
+    "src/client/components/ranklist/vendor/domjudge/templates/partials/scoreboard/_problem_cell.html.twig": "fb127a45604be145f71226f8141304e123d8cc3d693c1ba8d82b09f43b6960b3",
+    "src/client/components/ranklist/vendor/domjudge/templates/partials/scoreboard/_scoreboard_summary.html.twig": "fa0ea24afd4c309fdd699d392209a53a1da21d0641dc42e55a3cc5403dec02a4",
+    "src/client/components/ranklist/vendor/domjudge/templates/partials/scoreboard/_team_row.html.twig": "bb57b9e0cef3e3763779873c4576d7058a57706dd86ca12b08ae2f335b53fafb",
+    "src/client/components/ranklist/vendor/domjudge/templates/partials/scoreboard/_header_row.html.twig": "f088835c19f9ee74e147b570aace6e5bb2e297494f88021f1a1ea714b54181eb",
+    "src/client/components/ranklist/vendor/domjudge/templates/partials/scoreboard/_score_cells.html.twig": "675f5be577d2d2dc9f738ff738020e0271e4c3286f6429a2c9e7fe1514bdb374",
+    "public/scoreboards/domjudge/style_domjudge.css": "2db7a774915968c14f6fe6429c40e3f2d1648917fb4e2e54aad11cf76a24e8de",
+    "public/scoreboards/domjudge/js/domjudge.js": "07d3090579feff482d022f3f04dc5a5f3fa36769cf3a0777a27bc32a3fed24d7",
+    "public/scoreboards/domjudge/images/DOMjudgelogo.svg": "d12698221163b69695afaf7e19dad54bcc766d6068efa1e5c25dca18aead8cec",
+    "src/client/components/ranklist/vendor/domjudge/templates/partials/menu_change_contest.html.twig": "1d32daa89f08aa03c3971ba251c741ce03db42d4eed8d27fcc7b9506fa62e926",
+    "src/client/components/ranklist/vendor/domjudge/templates/partials/team.html.twig": "da783323913ee698775c0b4eeb32cea3926bec0e4ff2252b85a6c3f5044d8545",
+    "src/client/components/ranklist/vendor/domjudge/templates/partials/menu_countdown.html.twig": "dde66c6103df79f379028f41139dd2226793b924ab09905734237c8d976e4a50",
+    "src/client/components/ranklist/vendor/domjudge/templates/partials/menu_login_logout_button.html.twig": "28029fc77d09c59e58734401f96230179d0d31f0a4c519517b338fdfc6e16d63",
+    "public/scoreboards/domjudge/licenses/bootstrap-LICENSE.txt": "4620c84ad5ce8602ff65640ed6b7c8b78ebb9e036584f0ebc1ccc88206a4bb51",
+    "public/scoreboards/domjudge/licenses/jquery-LICENSE.txt": "d4db9ebe6f29f5168eac45ad713f055623ac5d0dcd5ba92da23d650ae012020d",
+    "public/scoreboards/domjudge/licenses/fontawesome-LICENSE.txt": "329f24fdba0c57714d7d202d30a74767feac6907685ee24f0abbf1bd47581a07",
+    "public/scoreboards/domjudge/css/bootstrap.min.css": "d85327d99c7a3ee1f9b5d0500d1370acea3ad2db39c163c2f51f232baedbdede",
+    "public/scoreboards/domjudge/css/fontawesome-all.min.css": "e2b4c87e8e464138bfed426aa3250940acf15bc54dfd8047df5f82cbebd3663e",
+    "public/scoreboards/domjudge/js/bootstrap.bundle.min.js": "e4fd49181388c48ec5040bd3fe66f57c29c8e67fcd8502b3354b96ec7ab47cc7",
+    "public/scoreboards/domjudge/js/jquery.min.js": "fc9a93dd241f6b045cbff0481cf4e1901becd0e12fb45166a8f17f95823f0b1a",
+    "public/scoreboards/domjudge/js/jquery.debounce.min.js": "817ee5624bc40af2dd5bd4968270fd60c1c241778e5fa10a048706e2ff3bd19b",
+    "public/scoreboards/domjudge/webfonts/fa-regular-400.woff2": "81159a6b36876a5545555ae689144f074e2fc802d57d36f2c21bc6f3a12f4e48",
+    "public/scoreboards/domjudge/webfonts/fa-v4compatibility.woff2": "c18e29ec6e1d46025f8fb1cf2e636c38078598ffa9399ccc52c7df07bb4ab1d0",
+    "public/scoreboards/domjudge/webfonts/fa-solid-900.woff2": "bdd7887ef769948024a5cc37a018f19da6a9b355b4a09973836115e0d31ead55",
+    "public/scoreboards/domjudge/webfonts/fa-brands-400.woff2": "061dd5c333459ea42dba764617793fd6ea2d316b7ab644f157e4d2354dac02af"
+  },
+  "dependencies": {
+    "bootstrap": "5.3.8",
+    "jquery": "3.7.1",
+    "@fortawesome/fontawesome-free": "7.1.0",
+    "jquery-debounce-throttle": "1.0.6-rc.0"
+  },
+  "ranklandBaseline": {
+    "file": "src/client/components/ranklist/StyledRanklistRenderer.vue",
+    "sha256": "db3849869c330a9833c79320a3dc1abce6e1de575036f99a35ffad0610a4439a"
+  }
+}
