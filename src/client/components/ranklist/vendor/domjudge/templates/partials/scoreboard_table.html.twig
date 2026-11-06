@@ -1,0 +1,167 @@
+{% if limitToTeams is not defined %}
+    {% set limitToTeams = null %}
+    {% set limitToTeamIds = null %}
+{% else %}
+    {% set limitToTeamIds = [] %}
+    {% for team in limitToTeams %}
+        {% set limitToTeamIds = limitToTeamIds | merge([team.teamid]) %}
+    {% endfor %}
+{% endif %}
+{% if showLegends is not defined %}
+    {% set showLegends = false %}
+{% endif %}
+{% if static is not defined %}
+    {% set static = false %}
+{% endif %}
+{% set showPoints = scoreboard.showPoints %}
+{% set scoringScoreboard = scoreboard.isScoring %}
+{% set colorCategories = scoreboard.colorCategories(limitToTeamIds) %}
+{% set hasDifferentCategoryColors = scoreboard.categoryColors(limitToTeamIds) %}
+{% set scores = scoreboard.scores | filter(score => limitToTeams is null or score.team.teamid in limitToTeamIds) %}
+{% set problems = scoreboard.problems %}
+{% set medalsEnabled = contest.medalsEnabled %}
+
+{% if maxWidth > 0 %}
+    <style>
+        .forceWidth {
+            max-width: {{ maxWidth }}px;
+        }
+    </style>
+{% endif %}
+
+<table class="scoreboard main-scoreboard center {% if jury %}scoreboard_jury{% endif %}">
+
+    {% set teamColspan = 3 %}
+    {% if showAffiliationLogos %}
+        {% set teamColspan = teamColspan + 1 %}
+    {% endif %}
+    {% if not public %}
+        {% set teamColspan = teamColspan - 1 %}
+    {% endif %}
+
+    {# output table column groups (for the styles) #}
+    <colgroup>
+        {% if enable_ranking %}
+            {% if medalsEnabled %}
+                <col id="scoremedal"/>
+            {% endif %}
+            <col id="scorerank"/>
+        {% endif %}
+        {% if showFlags %}
+            <col id="scoreflags"/>
+        {% else %}
+            <col/>
+        {% endif %}
+        {% if showAffiliationLogos %}
+            <col id="scorelogos"/>
+        {% endif %}
+        {% if public %}
+            <col id="scorehearts"/>
+        {% endif %}
+        <col id="scoreteamname"/>
+    </colgroup>
+    {% if enable_ranking %}
+        <colgroup>
+            <col id="scoresolv"/>
+            {% if not scoringScoreboard %}
+                <col id="scoretotal"/>
+            {% endif %}
+        </colgroup>
+    {% endif %}
+    <colgroup>
+        {% if showTeamSubmissions or jury %}
+            {% for problem in problems %}
+                <col class="scoreprob"/>
+            {% endfor %}
+        {% endif %}
+    </colgroup>
+    <thead>
+        {% include 'partials/scoreboard/_header_row.html.twig' %}
+    </thead>
+    <tbody>
+    {% set prevScore = null %}
+    {% for score in scores %}
+        {% include 'partials/scoreboard/_team_row.html.twig' with {score: score, prevScore: prevScore, isLast: loop.last} %}
+        {% set prevScore = score %}
+    {% endfor %}
+    </tbody>
+</table>
+
+{% if static %}
+    {% for score in scores %}
+        {% embed 'partials/modal.html.twig' with {'modalId': 'team-modal-' ~ score.team.externalid} %}
+            {% block title %}{{ score.team.effectiveName }}{% endblock %}
+            {% block content %}
+                {% include 'partials/team.html.twig' with {size: 6, team: score.team} %}
+            {% endblock %}
+        {% endembed %}
+    {% endfor %}
+{% endif %}
+
+{% if showLegends %}
+    <p><br/><br/></p>
+
+    {% if limitToTeamIds is null and colorCategories | length > 1 and hasDifferentCategoryColors %}
+        <table id="categ_legend" class="scoreboard scorelegend {% if jury %}scoreboard_jury{% endif %}">
+            <thead>
+            <tr>
+                <th scope="col">
+                    {% set link = null %}
+                    {% if jury %}
+                        {% set link = path('jury_team_categories') %}
+                    {% endif %}
+                    <a {% if link %}href="{{ link }}"{% endif %}>Categories</a>
+                </th>
+            </tr>
+            </thead>
+            <tbody>
+            {% for category in colorCategories %}
+                <tr {% if category.color %}class="cl{{ category.color | replace({"#": "_"}) }}"{% endif %}>
+                    <td>
+                        {% set link = null %}
+                        {% if jury %}
+                            {% set link = path('jury_team_category', {'categoryId': category.externalid}) %}
+                        {% endif %}
+                        <a {% if link %}href="{{ link }}"{% endif %}>{{ category.name }}</a>
+                    </td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    {% endif %}
+
+    {% if showTeamSubmissions or jury %}
+        {% if scoreboard.getRuntimeAsScoreTiebreaker() %}
+            {% set cellColors = {first: 'Solved, fastest', correct: 'Solved', incorrect: 'Tried, incorrect', pending: 'Tried, pending', neutral: 'Untried'} %}
+        {% else %}
+            {% set cellColors = {first: 'Solved first', correct: 'Solved', incorrect: 'Tried, incorrect', pending: 'Tried, pending', neutral: 'Untried'} %}
+        {% endif %}
+        <table id="cell_legend" class="d-none d-md-table scoreboard scorelegend {% if jury %}scoreboard_jury{% endif %}">
+            <thead>
+            <tr>
+                <th scope="col">Cell colours</th>
+            </tr>
+            </thead>
+            <tbody>
+            {% for color, description in cellColors %}
+                {% if color != 'pending' or showPending %}
+                    {% if color == 'first' %}
+                        {% set color = "correct score_first" %}
+                    {% endif %}
+                    <tr class="score_{{ color }}">
+                        <td>{{ description }}</td>
+                    </tr>
+                {% endif %}
+            {% endfor %}
+            </tbody>
+        </table>
+    {% endif %}
+{% endif %}
+
+<script>
+    document.querySelectorAll(".forceWidth:not(.toolong)").forEach(el => {
+        if (el instanceof Element && el.scrollWidth > el.offsetWidth) {
+            el.classList.add("toolong");
+        }
+    });
+</script>

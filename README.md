@@ -98,6 +98,8 @@ pnpm build:vp
 
 本仓库保留上游项目和第三方依赖的版权信息。
 
+在选赛入口分别选择 RankLand 或 DOMjudge；前者进入原 VP 页面，后者进入独立的 `domjudge.html`，页面内不混放两套界面。传统赛制支持两套，CCPC26 保留 RankLand。DOMjudge 直接使用原 Twig 模板、CSS 和 JavaScript，来源与接入边界见 [第三方榜单说明](src/client/components/ranklist/vendor/README.md)；完整许可证保存在 `public/licenses/`。
+
 `@algoux/standard-ranklist`、渲染器和相关工具包包含 MIT 许可证文本；榜单数据来自 [algoux/srk-collection](https://github.com/algoux/srk-collection)，请按其许可证和数据说明使用。
 
 `rankland-web` 上游源码的授权边界请以作者的明确许可为准。本仓库暂不为上游未明确授权的源码声明新的许可证。

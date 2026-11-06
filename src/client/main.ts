@@ -1,5 +1,6 @@
 import './index.less';
 import './index.css';
+import './app/install-contest-find';
 import Axios from 'axios';
 import { createApp } from 'vue';
 import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router';
