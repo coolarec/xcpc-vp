@@ -17,8 +17,10 @@ import { installRanklandAnalytics } from './app/analytics';
 import { applyMacBlinkOptimizations } from './app/platform';
 import { installRouteProgress } from './app/route-progress';
 import { getRanklandRuntimeConfig } from './app/config';
+import { getTodayVisitors } from './app/today-visitors';
 
 async function bootstrap() {
+  void getTodayVisitors();
   const routes: RouteRecordRaw[] = [{ path: '/', name: 'VP', component: VpPage }];
   const router = createRouter({
     history: createWebHistory(import.meta.env.BASE_URL),

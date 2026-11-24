@@ -19,7 +19,6 @@ import { readVPClock, reanchorVPClock } from './clock';
 import { formatChinaTime, formatChinaTimeLabel } from './china-time';
 import { shouldEnableCCPC26 } from '@/utils/ccpc26.util';
 import { parseSubmissionTime } from './submission-time';
-import { useVPPresence } from './presence';
 
 const route = useRoute();
 const router = useRouter();
@@ -66,7 +65,6 @@ const ccpc26Active = computed(() => !!ranklist.value && shouldEnableCCPC26(rankl
 const revealedProblems = computed(() => ccpc26Active.value && ranklist.value ? new Set(getCCPC26ProblemLayout(ranklist.value)?.revealedProblemIndexes || []) : null);
 const scheduledAtMs = computed(() => options.value.scheduledAt ? Date.parse(options.value.scheduledAt) : NaN);
 const waitingForSchedule = computed(() => options.value.autoplay && Number.isFinite(scheduledAtMs.value) && now.value < scheduledAtMs.value);
-useVPPresence(computed(() => !!ranklist.value && running.value && !ended.value && !waitingForSchedule.value), key);
 const scheduledLabel = computed(() => Number.isFinite(scheduledAtMs.value) ? `${formatChinaTimeLabel(scheduledAtMs.value)}（北京时间）` : '');
 // Only submissions are stored. Each actual start has its own records; clocks always come from the URL.
 const storageKey = computed(() => `RanklandVP:submissions:${key.value}:${new Date(scheduledAtMs.value).toISOString()}:${options.value.rule}:${options.value.revealCount}:${options.value.revealRatio}`);

@@ -4,6 +4,7 @@ import Axios from 'axios';
 import { formatTimeDuration } from '@algoux/standard-ranklist-utils';
 import { ApiClientFactory } from '@/api';
 import { getRanklandRuntimeConfig } from '@/app/config';
+import { getTodayVisitors } from '@/app/today-visitors';
 import { createClientRanklandApi } from '@/services/ranklist-api/factory.client';
 import { createNativeDomjudgeRenderer } from '@/components/ranklist/domjudge/native';
 import { formatSrkAssetUrl } from '@/utils/srk-asset.util';
@@ -24,6 +25,7 @@ const respond = (detail: Record<string, unknown>) => window.dispatchEvent(new Cu
 async function bootstrap() {
   if (!contest) { window.location.replace('/?board=domjudge'); return; }
   if (!/^[a-zA-Z0-9][a-zA-Z0-9._-]{0,127}$/.test(contest)) throw new Error('比赛 ID 格式不正确。');
+  void getTodayVisitors();
   let options = readVPOptions(query);
   if (!options.scheduledAt) {
     const canonical = buildVPQuery(contest, options);

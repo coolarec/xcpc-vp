@@ -9,7 +9,6 @@ vi.mock('vue-router', () => ({
   useRouter: () => ({ replace: harness.replace, push: vi.fn() }),
 }));
 vi.mock('@/services/ranklist-api', () => ({ useRanklandApi: () => ({ getRanklist: harness.getRanklist }) }));
-vi.mock('./presence', () => ({ useVPPresence: vi.fn() }));
 vi.mock('@/components/ui/button', () => ({ Button: { template: '<button><slot /></button>' } }));
 vi.mock('@/components/ui/input', () => ({ Input: { render: () => null } }));
 vi.mock('@/components/ui/switch', () => ({ Switch: { render: () => null } }));
